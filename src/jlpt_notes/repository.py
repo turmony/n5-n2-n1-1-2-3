@@ -5,9 +5,11 @@ from datetime import date, timedelta
 import json
 from pathlib import Path
 from uuid import uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from .frontmatter import write_card
 from .models import Card
+from .quizzes import Question, QuizResult
 
 
 class Repository:
@@ -66,3 +68,38 @@ class Repository:
         with events.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"event_type": "confirmed", "card_id": card.id, "date": confirmed_on.isoformat()}, ensure_ascii=False) + "\n")
         return card
+
+    def save_question(self, question: Question) -> Path:
+        self.init_layout()
+        path = self.root / "quizzes" / "questions" / f"{question.id}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = question.__dict__
+        path.write_text("---\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n---\n\n" + question.prompt + "\n", encoding="utf-8")
+        return path
+
+    def record_attempt(self, question: Question, result: QuizResult, answered_on: date, error_tags: tuple[str, ...]) -> dict:
+        self.init_layout()
+        event = {"question_id": question.id, "revision": question.revision, "item_type": question.item_type,
+                 "selected_option": result.selected_option, "is_correct": result.is_correct, "uncertain": result.uncertain,
+                 "error_tags": list(error_tags), "date": answered_on.isoformat()}
+        with (self.root / "quizzes" / "attempts.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+        return event
+
+    def create_vocab_candidate(self, question: Question, attempt: dict) -> Path:
+        if attempt["is_correct"] or question.item_type not in {"kanji_reading", "orthography", "word_formation", "context_expression", "paraphrase", "usage"}:
+            raise ValueError("only incorrect vocabulary attempts create candidates")
+        folder = self.root / "drafts" / "vocabulary-candidates"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"candidate-{uuid4().hex[:12]}.md"
+        path.write_text("# 待确认词汇卡\n\n- 来源题目：" + question.id + "\n- 错误选项：" + attempt["selected_option"] + "\n\n" + question.prompt + "\n", encoding="utf-8")
+        return path
+
+    def create_backup(self, on_date: date) -> Path:
+        self.init_layout()
+        archive = self.root / "backups" / f"{on_date.isoformat()}-jlpt-notes.zip"
+        with ZipFile(archive, "w", ZIP_DEFLATED) as backup:
+            for path in self.root.rglob("*"):
+                if path.is_file() and "backups" not in path.parts and ".git" not in path.parts and "__pycache__" not in path.parts:
+                    backup.write(path, path.relative_to(self.root).as_posix())
+        return archive
