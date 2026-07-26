@@ -37,8 +37,8 @@
 {"question_id": "N5-Q-0037", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
 {"question_id": "N5-Q-0038", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
 {"question_id": "N5-Q-0039", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
-{"question_id": "N5-Q-0040", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": true, "error_tags": ["不确定"], "date": "2026-07-26"}
-{"question_id": "N5-Q-0041", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["拟态语接续", "接续错误"], "date": "2026-07-26"}
-{"question_id": "N5-Q-0042", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["原因接续", "接续错误"], "date": "2026-07-26"}
+{"question_id": "N5-Q-0040", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
+{"question_id": "N5-Q-0042", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
 {"question_id": "N5-Q-0043", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["授受方向", "语义混淆"], "date": "2026-07-26"}
-{"question_id": "N5-Q-0044", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["时间范围", "助词误用"], "date": "2026-07-26"}
+{"question_id": "N5-Q-0044", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
+{"question_id": "N5-Q-0045", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-07-26"}
