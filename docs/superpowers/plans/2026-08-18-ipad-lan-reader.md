@@ -1163,8 +1163,8 @@ git commit -m "feat: serve generated reader pages read-only"
 **Interfaces:**
 - Produces: `LanAddress(interface_index: int, address: str, category: str)`.
 - Produces: `parse_network_json(text: str) -> tuple[LanAddress, ...]` and `private_lan_addresses() -> tuple[LanAddress, ...]`.
-- Produces: `firewall_rule_present(port: int) -> bool` and `configure_firewall(script_path: Path, port: int) -> bool`.
-- Guarantees: rule display name `JLPT iPad Reader (Private LAN)`, profile `Private`, remote address `LocalSubnet`, TCP port `8765`.
+- Produces: `firewall_rule_present(port: int, program_path: Path) -> bool` and `configure_firewall(script_path: Path, port: int, program_path: Path) -> bool`.
+- Guarantees: rule display name `JLPT iPad Reader (Private LAN)`, profile `Private`, remote address `LocalSubnet`, TCP port `8765`, and program path exactly matching the `pythonw.exe` process that serves the reader. There is no implicit `python.exe` fallback.
 
 - [ ] **Step 1: Write failing network and firewall contract tests**
 
@@ -1241,21 +1241,24 @@ Implement `private_lan_addresses()` by invoking a fixed, non-user-derived PowerS
 Create `configure-firewall.ps1`:
 
 ```powershell
-param([ValidateRange(1024,65535)][int]$Port = 8765)
+param(
+    [ValidateRange(1024,65535)][int]$Port = 8765,
+    [Parameter(Mandatory = $true)][string]$Program
+)
 $ErrorActionPreference = 'Stop'
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Port $Port"
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Port $Port -Program `"$Program`""
     $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $arguments -Wait -PassThru
     exit $process.ExitCode
 }
 $name = 'JLPT iPad Reader (Private LAN)'
 Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-New-NetFirewallRule -DisplayName $name -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -Profile Private -RemoteAddress LocalSubnet | Out-Null
+New-NetFirewallRule -DisplayName $name -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -Profile Private -RemoteAddress LocalSubnet -Program $Program | Out-Null
 ```
 
-Implement `firewall_rule_present()` with a fixed PowerShell query that checks enabled inbound/allow/private rule plus associated TCP port filter. Implement `configure_firewall()` by calling the script with `-NoProfile -ExecutionPolicy Bypass -File <exact resolved script> -Port <validated int>`, waiting for UAC completion, and returning `returncode == 0`. Never alter network category automatically.
+Implement `firewall_rule_present()` with a fixed PowerShell query that checks the complete same-display-name rule set and accepts exactly one enabled inbound/allow/private rule with `LocalSubnet`, TCP port, and the explicitly supplied serving program. Implement `configure_firewall()` by calling the script with `-NoProfile -ExecutionPolicy Bypass -File <exact resolved script> -Port <validated int> -Program <exact resolved serving pythonw.exe>`, waiting for UAC completion, and returning `returncode == 0`. Both functions require the same explicit existing `program_path`; neither derives or defaults to `python.exe`. Never alter network category automatically.
 
 - [ ] **Step 5: Run network, firewall, and full tests**
 
@@ -1288,8 +1291,8 @@ git commit -m "feat: restrict reader to private LAN access"
 **Interfaces:**
 - Consumes: builder, watcher, server, network, and firewall modules.
 - Produces: `ReaderStatus(state, message, url)`.
-- Produces: `ReaderController(root, config_path, port=8765, on_status=None)` with `start()`, `rebuild()`, `stop()`, and `configure_firewall()`.
-- Produces: `launcher.run(root: Path, config_path: Path, port: int = 8765) -> int`.
+- Produces: `ReaderController(root, config_path, program_path, port=8765, on_status=None)` with `start()`, `rebuild()`, `stop()`, and `configure_firewall()`.
+- Produces: `launcher.run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> int`.
 - Produces CLI: `python -m jlpt_notes reader --root jlpt-notes --config reader/mkdocs.yml --port 8765`.
 
 - [ ] **Step 1: Write failing controller and CLI tests**
@@ -1310,14 +1313,18 @@ class ReaderControllerTests(unittest.TestCase):
              patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
              patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
             statuses = []
-            controller = ReaderController(Path(directory), Path("reader/mkdocs.yml"), on_status=statuses.append)
+            program = Path(directory) / "pythonw.exe"
+            program.write_bytes(b"test executable")
+            controller = ReaderController(Path(directory), Path("reader/mkdocs.yml"), program, on_status=statuses.append)
             controller._publish_network_status()
             self.assertEqual(statuses[-1].state, "local-only")
             self.assertIn("专用网络", statuses[-1].message)
 
     def test_stop_is_idempotent(self) -> None:
         with TemporaryDirectory() as directory:
-            controller = ReaderController(Path(directory), Path("reader/mkdocs.yml"))
+            program = Path(directory) / "pythonw.exe"
+            program.write_bytes(b"test executable")
+            controller = ReaderController(Path(directory), Path("reader/mkdocs.yml"), program)
             controller.stop()
             controller.stop()
 ```
@@ -1366,10 +1373,11 @@ class ReaderStatus:
 
 
 class ReaderController:
-    def __init__(self, root: Path, config_path: Path, port: int = 8765,
+    def __init__(self, root: Path, config_path: Path, program_path: Path, port: int = 8765,
                  on_status: Callable[[ReaderStatus], None] | None = None) -> None:
         self.root = root.resolve()
         self.config_path = config_path.resolve()
+        self.program_path = program_path.resolve(strict=True)
         self.port = port
         self._on_status = on_status or (lambda status: None)
         self._lock = Lock()
@@ -1380,9 +1388,9 @@ class ReaderController:
         self._build_number = 0
 ```
 
-Implement `start()` in this order: validate root/config/port; create `TemporaryDirectory(prefix="jlpt-reader-")`; create `SiteStore`; run initial build into `site-000001`; if it fails publish `error` and do not start HTTP; discover private addresses; if none or firewall rule absent, bind `127.0.0.1` and publish `local-only`; otherwise bind `0.0.0.0`, publish the first private URL, and retain all valid addresses for the launcher. Start `SourceWatcher` only after a successful site build.
+Implement `start()` in this order: validate root/config/port and require `program_path` to be the existing `pythonw.exe` executable actually hosting this controller; create `TemporaryDirectory(prefix="jlpt-reader-")`; create `SiteStore`; run initial build into `site-000001`; if it fails publish `error` and do not start HTTP; discover private addresses; if none or `firewall_rule_present(port, program_path)` is false, bind `127.0.0.1` and publish `local-only`; otherwise bind `0.0.0.0`, publish the first private URL, and retain all valid addresses for the launcher. Start `SourceWatcher` only after a successful site build.
 
-Implement `rebuild()` under a nonblocking lock, build `site-NNNNNN`, activate only on success, retain the previous site on failure, and publish `running` or `error`; an error status includes the temporary `BuildResult.log_path`. Implement `stop()` as idempotent: stop watcher, stop server, close store, clean temporary directory, and publish `stopped`. Implement `_publish_network_status()` as a directly testable helper. Never invoke firewall setup automatically. The controller method `configure_firewall()` calls the firewall module through an alias, and after success stops the localhost server and restarts it on `0.0.0.0` only if a private address and the scoped rule are both present.
+Implement `rebuild()` under a nonblocking lock, build `site-NNNNNN`, activate only on success, retain the previous site on failure, and publish `running` or `error`; an error status includes the temporary `BuildResult.log_path`. Implement `stop()` as idempotent: stop watcher, stop server, close store, clean temporary directory, and publish `stopped`. Implement `_publish_network_status()` as a directly testable helper. Never invoke firewall setup automatically. The controller method `configure_firewall()` passes `self.program_path` to both the firewall configuration and status APIs; after success it stops the localhost server and restarts it on `0.0.0.0` only if a private address and the program-scoped rule are both present.
 
 - [ ] **Step 4: Implement the Tkinter window and CLI dispatch**
 
@@ -1399,6 +1407,8 @@ window.protocol("WM_DELETE_WINDOW", close_window)
 Start `ReaderController.start()` on a worker thread so the window remains responsive. Send status updates through `window.after(0, apply_status, status)`. `close_window` calls `controller.stop()` before destroying the window. Hide the firewall button after LAN access is active. Do not minimize to tray or remain resident after closing.
 
 Modify `build_parser()` to add a `reader` command with `--root`, `--config`, and validated `--port`. In `main()`, dispatch `reader` before creating `Repository`, import `launcher.run` lazily, and return its code. Existing commands must remain unchanged.
+
+`main()` must pass `Path(sys.executable).resolve()` explicitly to `launcher.run()`. The supported desktop flow starts this process through the shortcut's exact `pythonw.exe` target; `launcher.run()` and `ReaderController` verify and retain that same path. They must not silently substitute a sibling `python.exe` or another interpreter.
 
 - [ ] **Step 5: Add the explicit desktop-shortcut installer**
 
@@ -1422,6 +1432,7 @@ Write-Host "已创建：$shortcutPath"
 ```
 
 The script only creates the desktop shortcut when run manually. It does not add startup entries.
+The exact resolved `$pythonw` assigned to `TargetPath` is the serving executable contract consumed by the CLI, launcher, controller, firewall status check, and firewall configuration. Keep it safely quoted as one argument when passed to PowerShell.
 
 - [ ] **Step 6: Run controller, CLI, and full tests**
 
@@ -1545,11 +1556,14 @@ Verify the catalog, one formal card, one draft, one long quiz result, one JSONL 
 Run manually:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\reader\configure-firewall.ps1 -Port 8765
-powershell -NoProfile -ExecutionPolicy Bypass -File .\reader\install-shortcut.ps1
+$python = (Get-Command python.exe -ErrorAction Stop).Source
+$pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
+if (-not (Test-Path -LiteralPath $pythonw -PathType Leaf)) { throw "未找到 pythonw.exe：$pythonw" }
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\reader\configure-firewall.ps1 -Port 8765 -Program $pythonw
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\reader\install-shortcut.ps1
 ```
 
-Expected: Windows shows an elevation confirmation for the firewall rule; the desktop shortcut is created; no startup entry is created.
+Expected: Windows shows an elevation confirmation for a rule scoped to the same exact `pythonw.exe` used by the desktop shortcut; the desktop shortcut is created; no startup entry is created.
 
 - [ ] **Step 7: Perform actual iPad acceptance with the user**
 

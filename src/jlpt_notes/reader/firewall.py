@@ -4,7 +4,6 @@ import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-import sys
 from typing import Any
 
 
@@ -19,9 +18,15 @@ class FirewallConfigurationError(RuntimeError):
     """Raised when the explicit firewall configuration cannot be launched."""
 
 
-def firewall_rule_present(port: int, *, runner=None) -> bool:
+def firewall_rule_present(
+    port: int,
+    program_path: Path,
+    *,
+    runner=None,
+) -> bool:
     """Inspect whether the exact enabled Private/LocalSubnet rule exists."""
     checked_port = _validate_port(port)
+    expected_program = str(_resolve_program_path(program_path))
     query = _status_query()
     command = [
         "powershell.exe",
@@ -52,20 +57,20 @@ def firewall_rule_present(port: int, *, runner=None) -> bool:
         raise FirewallInspectionError(
             f"无法检查 Windows 防火墙规则：返回数据无效（{error}）"
         ) from error
-    expected_program = str(Path(sys.executable).resolve())
     return len(rows) == 1 and _rule_matches(rows[0], checked_port, expected_program)
 
 
 def configure_firewall(
     script_path: Path,
     port: int,
+    program_path: Path,
     *,
     runner=None,
 ) -> bool:
     """Run the firewall script only after an explicit caller action."""
     checked_port = _validate_port(port)
     resolved_script = Path(script_path).resolve(strict=True)
-    program = Path(sys.executable).resolve()
+    program = _resolve_program_path(program_path)
     if not resolved_script.is_file():
         raise FileNotFoundError(f"找不到防火墙配置脚本：{resolved_script}")
     command = [
@@ -99,6 +104,13 @@ def _validate_port(port: int) -> int:
     if isinstance(port, bool) or not isinstance(port, int) or not 1024 <= port <= 65535:
         raise ValueError("端口必须是 1024 到 65535 之间的整数")
     return port
+
+
+def _resolve_program_path(program_path: Path) -> Path:
+    resolved = Path(program_path).resolve(strict=True)
+    if not resolved.is_file():
+        raise FileNotFoundError(f"找不到阅读器程序：{resolved}")
+    return resolved
 
 
 def _rule_matches(rule: dict[str, object], port: int, program: str) -> bool:
