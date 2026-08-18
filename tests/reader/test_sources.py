@@ -1,9 +1,21 @@
 import hashlib
+from html.parser import HTMLParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from jlpt_notes.reader.sources import build_catalog_page, load_source_pages
+from jlpt_notes.reader.metadata import parse_markdown
+from jlpt_notes.reader.sources import SourcePage, build_catalog_page, load_source_pages
+
+
+class _CatalogEntryParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.entry_attributes: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "li":
+            self.entry_attributes.append(dict(attrs))
 
 
 class ReaderSourceTests(unittest.TestCase):
@@ -68,6 +80,24 @@ class ReaderSourceTests(unittest.TestCase):
             self.assertIn("记录 3", page.markdown)
             self.assertIn("第 2 行无法解析", page.warning or "")
 
+    def test_jsonl_valid_record_has_escaped_compact_summary_and_full_details(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "events.jsonl").write_text(
+                '{"id":"<script>alert(1)</script>","result":"wrong","score":2,"nested":{"x":1}}\n',
+                encoding="utf-8",
+            )
+
+            page = load_source_pages(root)[0]
+
+            self.assertIn('<dl class="jlpt-json-summary">', page.markdown)
+            self.assertIn("<dt>id</dt>", page.markdown)
+            self.assertIn("<dt>result</dt>", page.markdown)
+            self.assertIn("<dt>score</dt>", page.markdown)
+            self.assertIn('<details class="jlpt-json-record">', page.markdown)
+            self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page.markdown)
+            self.assertNotIn("<script>alert(1)</script>", page.markdown)
+
     def test_catalog_contains_filter_data_titles_and_deterministic_order(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -95,6 +125,40 @@ class ReaderSourceTests(unittest.TestCase):
             self.assertIn("N5-G-0002｜二", catalog.markdown)
             self.assertLess(catalog.markdown.index("N5-G-0002｜二"), catalog.markdown.index("N5-G-0010｜十"))
             self.assertLess(catalog.markdown.index("新报告"), catalog.markdown.index("旧报告"))
+
+    def test_catalog_entries_expose_filter_selector_class(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "N5-G-0001.md").write_text("# 卡片\n", encoding="utf-8")
+
+            catalog = build_catalog_page(load_source_pages(root))
+            parser = _CatalogEntryParser()
+            parser.feed(catalog.markdown)
+
+            self.assertEqual(len(parser.entry_attributes), 1)
+            self.assertIn("jlpt-catalog-entry", parser.entry_attributes[0].get("class", "").split())
+
+    def test_casefold_collisions_have_a_stable_original_path_tiebreaker(self) -> None:
+        lowercase_path = Path("alpha.md")
+        uppercase_path = Path("Alpha.md")
+        lowercase = SourcePage(
+            lowercase_path,
+            lowercase_path,
+            "# lower\n",
+            parse_markdown(lowercase_path, "# lower\n").metadata,
+            "lower",
+        )
+        uppercase = SourcePage(
+            uppercase_path,
+            uppercase_path,
+            "# upper\n",
+            parse_markdown(uppercase_path, "# upper\n").metadata,
+            "upper",
+        )
+
+        catalog = build_catalog_page((lowercase, uppercase))
+
+        self.assertLess(catalog.markdown.index("Alpha.md"), catalog.markdown.index("alpha.md"))
 
 
 if __name__ == "__main__":

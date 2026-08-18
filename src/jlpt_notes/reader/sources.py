@@ -12,6 +12,22 @@ from urllib.parse import quote
 from .metadata import DocumentMetadata, ParsedMarkdown, parse_markdown
 
 
+_SUMMARY_FIELDS = (
+    "id",
+    "card_id",
+    "draft_id",
+    "date",
+    "created_at",
+    "completed_at",
+    "level",
+    "kind",
+    "result",
+    "status",
+    "score",
+    "correct",
+)
+
+
 @dataclass(frozen=True)
 class SourcePage:
     """A source document prepared for rendering without changing its file."""
@@ -48,7 +64,7 @@ def load_source_pages(root: Path) -> tuple[SourcePage, ...]:
                 warning=parsed.warning,
             )
         )
-    return tuple(sorted(pages, key=lambda page: page.relative_path.as_posix().casefold()))
+    return tuple(sorted(pages, key=lambda page: _path_sort_key(page.relative_path)))
 
 
 def build_catalog_page(pages: tuple[SourcePage, ...]) -> SourcePage:
@@ -93,9 +109,9 @@ def _source_files(root: Path) -> tuple[Path, ...]:
                 for name in directory_names
                 if not name.startswith(".") and not (current / name).is_symlink()
             ),
-            key=str.casefold,
+            key=lambda name: (name.casefold(), name),
         )
-        for name in sorted(file_names, key=str.casefold):
+        for name in sorted(file_names, key=lambda name: (name.casefold(), name)):
             path = current / name
             if name.startswith(".") or path.is_symlink() or path.suffix.lower() not in {".md", ".jsonl"}:
                 continue
@@ -120,6 +136,7 @@ def _parse_jsonl(relative_path: Path, text: str) -> ParsedMarkdown:
         formatted = json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True)
         rendered_lines.extend(
             (
+                *_render_json_summary(record),
                 '<details class="jlpt-json-record">',
                 f"<summary>记录 {line_number}</summary>",
                 f"<pre>{escape(formatted)}</pre>",
@@ -132,6 +149,34 @@ def _parse_jsonl(relative_path: Path, text: str) -> ParsedMarkdown:
     return ParsedMarkdown(parsed.metadata, parsed.body, " ".join(warnings) or None)
 
 
+def _render_json_summary(record: object) -> tuple[str, ...]:
+    if not isinstance(record, dict):
+        return ()
+    fields = tuple(
+        (field, record[field])
+        for field in _SUMMARY_FIELDS
+        if field in record
+        if record[field] is None or isinstance(record[field], (str, int, float, bool))
+    )
+    if not fields:
+        return ()
+    lines = ['<dl class="jlpt-json-summary">']
+    for field, value in fields:
+        lines.append(f"<dt>{escape(field)}</dt><dd>{escape(_display_json_scalar(value))}</dd>")
+    lines.extend(("</dl>", ""))
+    return tuple(lines)
+
+
+def _display_json_scalar(value: object) -> str:
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return str(value)
+
+
 def _catalog_entry(page: SourcePage) -> str:
     metadata = page.metadata
     level = metadata.level or ""
@@ -139,7 +184,7 @@ def _catalog_entry(page: SourcePage) -> str:
     tags = " ".join(metadata.tags)
     link = quote(page.output_path.as_posix(), safe="/")
     return (
-        f'<li data-level="{escape(level, quote=True)}" '
+        f'<li class="jlpt-catalog-entry" data-level="{escape(level, quote=True)}" '
         f'data-type="{escape(content_type, quote=True)}" '
         f'data-tags="{escape(tags, quote=True)}">'
         f'<a href="{link}">{escape(metadata.display_title)}</a>'
@@ -151,13 +196,13 @@ def _catalog_entry(page: SourcePage) -> str:
 def _catalog_sort_key(page: SourcePage) -> tuple[object, ...]:
     source_id = page.metadata.source_id or ""
     identifier = re.fullmatch(r"N([1-5])-([A-Z]+)-(\d+)", source_id, re.IGNORECASE)
-    path = page.relative_path.as_posix().casefold()
+    path = _path_sort_key(page.relative_path)
     if identifier:
-        return (0, int(identifier.group(1)), identifier.group(2).casefold(), int(identifier.group(3)), path)
+        return (0, int(identifier.group(1)), identifier.group(2).casefold(), int(identifier.group(3)), *path)
     date = _date_for_report(page)
     if date:
-        return (1, page.metadata.content_type.casefold(), -int(date.replace("-", "")), path)
-    return (2, path)
+        return (1, page.metadata.content_type.casefold(), -int(date.replace("-", "")), *path)
+    return (2, *path)
 
 
 def _date_for_report(page: SourcePage) -> str | None:
@@ -165,3 +210,8 @@ def _date_for_report(page: SourcePage) -> str | None:
         return None
     match = re.search(r"\d{4}-\d{2}-\d{2}", page.relative_path.as_posix())
     return match.group(0) if match else None
+
+
+def _path_sort_key(path: Path) -> tuple[str, str]:
+    value = path.as_posix()
+    return (value.casefold(), value)
