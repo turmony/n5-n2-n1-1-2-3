@@ -1,9 +1,11 @@
 import http.client
 from contextlib import contextmanager
 from pathlib import Path
+import socket
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
 import unittest
+from unittest.mock import patch
 
 from jlpt_notes.reader.builder import SiteStore
 from jlpt_notes.reader.server import ReadOnlyServer
@@ -62,6 +64,18 @@ class ReaderServerTests(unittest.TestCase):
         connection.close()
         return status, headers, payload
 
+    def raw_request(self, target: bytes) -> bytes:
+        with socket.create_connection(("127.0.0.1", self.server.bound_port), timeout=5) as client:
+            client.sendall(
+                b"GET "
+                + target
+                + b" HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
+            )
+            chunks = []
+            while chunk := client.recv(64 * 1024):
+                chunks.append(chunk)
+        return b"".join(chunks)
+
     def test_get_and_head_serve_files_with_matching_metadata(self) -> None:
         status, get_headers, body = self.request("GET", "/")
         head_status, head_headers, head_body = self.request("HEAD", "/")
@@ -104,6 +118,17 @@ class ReaderServerTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(body, b"encoded path")
+
+    def test_raw_multiple_leading_slashes_are_rejected_before_base_normalization(self) -> None:
+        normal = self.raw_request(b"/")
+        self.assertIn(b" 200 ", normal.split(b"\r\n", 1)[0])
+        self.assertIn(b"JLPT", normal)
+
+        for target in (b"//", b"///", b"////guide/"):
+            with self.subTest(target=target):
+                response = self.raw_request(target)
+                self.assertIn(b" 404 ", response.split(b"\r\n", 1)[0])
+                self.assertNotIn(b"JLPT", response)
 
     def test_mime_types_and_no_cache_for_json_but_not_static_css(self) -> None:
         json_status, json_headers, _ = self.request("GET", "/reader-version.json")
@@ -177,6 +202,55 @@ class ReaderServerTests(unittest.TestCase):
         self.assertEqual(result, [(200, b"<h1>JLPT</h1>")])
         self.assertTrue(blocking_store.lease_exited.wait(timeout=5))
         self.assertFalse(self.site.exists())
+
+    def test_concurrent_stop_callers_wait_for_complete_shutdown(self) -> None:
+        shutdown_entered = Event()
+        release_shutdown = Event()
+        second_started = Event()
+        second_finished = Event()
+        close_finished = Event()
+        real_shutdown = self.server._httpd.shutdown
+        real_server_close = self.server._httpd.server_close
+
+        def blocking_shutdown() -> None:
+            shutdown_entered.set()
+            if not release_shutdown.wait(timeout=5):
+                raise TimeoutError("test did not release server shutdown")
+            real_shutdown()
+
+        def tracked_server_close() -> None:
+            real_server_close()
+            close_finished.set()
+
+        def stop_second() -> None:
+            second_started.set()
+            self.server.stop()
+            second_finished.set()
+
+        with (
+            patch.object(self.server._httpd, "shutdown", side_effect=blocking_shutdown),
+            patch.object(self.server._httpd, "server_close", side_effect=tracked_server_close),
+        ):
+            first = Thread(target=self.server.stop, name="test-first-stop")
+            second = Thread(target=stop_second, name="test-second-stop")
+            first.start()
+            self.assertTrue(shutdown_entered.wait(timeout=5))
+            second.start()
+            try:
+                self.assertTrue(second_started.wait(timeout=5))
+                self.assertFalse(second_finished.wait(timeout=0.2))
+            finally:
+                release_shutdown.set()
+                first.join(timeout=5)
+                second.join(timeout=5)
+
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertTrue(second_finished.is_set())
+        self.assertTrue(close_finished.is_set())
+        self.assertFalse(self.server._thread.is_alive())
+        with self.assertRaises(OSError):
+            socket.create_connection(("127.0.0.1", self.server.bound_port), timeout=0.2)
 
 
 if __name__ == "__main__":

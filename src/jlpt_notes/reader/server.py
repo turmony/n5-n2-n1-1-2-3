@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import mimetypes
 import os
 from pathlib import PurePosixPath
-from threading import Lock, Thread
+from threading import Event, Lock, Thread, current_thread
 from urllib.parse import unquote, urlsplit
 
 from .builder import SiteStore
@@ -28,7 +28,8 @@ class ReadOnlyServer:
         )
         self._lifecycle_lock = Lock()
         self._started = False
-        self._stopped = False
+        self._stop_owner: Thread | None = None
+        self._stop_complete = Event()
 
     @property
     def bound_port(self) -> int:
@@ -38,7 +39,7 @@ class ReadOnlyServer:
     def start(self) -> None:
         """Start accepting requests once."""
         with self._lifecycle_lock:
-            if self._stopped:
+            if self._stop_owner is not None:
                 raise RuntimeError("A stopped reader server cannot be restarted")
             if self._started:
                 return
@@ -47,19 +48,43 @@ class ReadOnlyServer:
 
     def stop(self) -> None:
         """Stop accepting requests and release the listening socket."""
+        caller = current_thread()
+        if caller is self._thread:
+            raise RuntimeError("The reader serve thread cannot stop itself")
         with self._lifecycle_lock:
-            if self._stopped:
-                return
-            self._stopped = True
-            started = self._started
-        if started:
-            self._httpd.shutdown()
-            self._thread.join(timeout=5)
-        self._httpd.server_close()
+            owner = self._stop_owner
+            if owner is None:
+                self._stop_owner = caller
+                started = self._started
+                owns_shutdown = True
+            elif owner is caller and not self._stop_complete.is_set():
+                raise RuntimeError("Recursive reader server shutdown is not allowed")
+            else:
+                started = False
+                owns_shutdown = False
+        if not owns_shutdown:
+            self._stop_complete.wait()
+            return
+        try:
+            if started:
+                self._httpd.shutdown()
+                self._thread.join()
+        finally:
+            try:
+                self._httpd.server_close()
+            finally:
+                self._stop_complete.set()
 
 
 def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
     class GeneratedSiteHandler(BaseHTTPRequestHandler):
+        def parse_request(self) -> bool:
+            # BaseHTTPRequestHandler deliberately collapses a leading `//` to
+            # `/`. Preserve the request-target first so our stricter path
+            # boundary can reject every multiple-leading-slash form.
+            self._raw_request_target = _raw_request_target(self.raw_requestline)
+            return super().parse_request()
+
         def do_GET(self) -> None:
             self._serve(send_body=True)
 
@@ -80,7 +105,7 @@ def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
 
         def _serve(self, *, send_body: bool) -> None:
-            request_path = _request_file(self.path)
+            request_path = _request_file(self._raw_request_target)
             if request_path is None:
                 self.send_error(404)
                 return
@@ -123,6 +148,8 @@ def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
 
 def _request_file(request_target: str) -> str | None:
     """Convert a URL request target to a safe site-relative POSIX path."""
+    if request_target.startswith("//"):
+        return None
     try:
         split = urlsplit(request_target)
         decoded = unquote(split.path, errors="strict")
@@ -148,6 +175,13 @@ def _request_file(request_target: str) -> str | None:
     if decoded.endswith("/"):
         relative /= "index.html"
     return relative.as_posix()
+
+
+def _raw_request_target(request_line: bytes) -> str:
+    words = request_line.rstrip(b"\r\n").split()
+    if len(words) < 2:
+        return ""
+    return words[1].decode("iso-8859-1")
 
 
 def _copy_response(source, destination) -> None:
