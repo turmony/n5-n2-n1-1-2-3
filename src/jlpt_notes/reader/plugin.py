@@ -2,13 +2,18 @@
 
 from hashlib import sha256
 from html import escape
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
 from typing import Any
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 import bleach
+from markdown.extensions import Extension
+from markdown.preprocessors import Preprocessor
+from markdown.treeprocessors import Treeprocessor
 from mkdocs import plugins
 from mkdocs.config import base, config_options as c
 from mkdocs.structure.files import File, Files
@@ -29,6 +34,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
 
     def on_config(self, config, **kwargs: Any):
         config["mdx_configs"].setdefault("toc", {}).setdefault("slugify", slugify())
+        config["markdown_extensions"].append(ReaderHeadingExtension())
         self._source_root = Path(config.docs_dir).resolve(strict=True)
         self._config_root = Path(config.config_file_path).resolve().parent
         self._pages = load_source_pages(self._source_root)
@@ -99,13 +105,12 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             }
         )
         warning = f'!!! warning "读取提示"\n    {source.warning}\n\n' if source.warning else ""
-        body = _demote_headings(markdown)
         safe_title = escape(source.metadata.display_title)
-        return f"# {safe_title}\n\n{render_metadata_block(source.metadata)}\n\n{warning}{body}"
+        return f"# {safe_title}\n\n{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
 
     def on_page_content(self, html: str, page, **kwargs: Any) -> str:
         """Keep generated page HTML readable while removing unsafe source HTML."""
-        return _sanitize_html(html)
+        return _sanitize_html(_demote_raw_html_h1_after_title(html))
 
     def on_page_context(self, context, page, config, nav, **kwargs: Any):
         source = self._pages_by_uri.get(page.file.src_uri)
@@ -126,73 +131,140 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         )
 
 
-def _demote_headings(markdown: str) -> str:
-    """Reserve H1 for the generated display title without rewriting code samples."""
-    output: list[str] = []
-    lines = markdown.splitlines(keepends=True)
-    in_fence: tuple[str, int] | None = None
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        fence = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
-        if in_fence is not None:
-            character, length = in_fence
-            if re.match(rf"^\s{{0,3}}{re.escape(character)}{{{length},}}\s*(?:\r?\n)?$", line):
-                in_fence = None
-            output.append(line)
-            index += 1
-            continue
-        if fence:
-            marker = fence.group(1)
-            if in_fence is None:
-                in_fence = (marker[0], len(marker))
-            output.append(line)
-            index += 1
-            continue
-        if re.match(r"^(?: {4}|\t)", line):
-            output.append(line)
-            index += 1
-            continue
+class ReaderHeadingExtension(Extension):
+    """Demote parsed source headings before MkDocs' TOC processor assigns anchors."""
 
-        if _is_setext_h1(lines, index):
-            output.append(_setext_to_atx_h2(line))
-            index += 2
-            continue
-
-        line = re.sub(
-            r"^(\s{0,3}(?:>\s*)*)(#{1,5})(?=\s)",
-            lambda match: match.group(1) + "#" + match.group(2),
-            line,
-        )
-        line = re.sub(r"<(/?)h1\b", r"<\1h2", line, flags=re.IGNORECASE)
-        output.append(line)
-        index += 1
-    return "".join(output)
+    def extendMarkdown(self, md) -> None:
+        md.preprocessors.register(_BlockQuoteFencedCodePreprocessor(md), "jlpt_reader_blockquote_fences", 26)
+        md.treeprocessors.register(_DemoteSourceHeadingTreeprocessor(md), "jlpt_reader_headings", 6)
 
 
-def _is_setext_h1(lines: list[str], index: int) -> bool:
-    if index + 1 >= len(lines):
-        return False
-    prefix, current = _blockquote_prefix_and_content(lines[index])
-    underline_prefix, underline = _blockquote_prefix_and_content(lines[index + 1])
-    return bool(
-        current.strip()
-        and prefix == underline_prefix
-        and not re.match(r"^\s{0,3}(?:#{1,6}|[-+*]\s|\d+[.)]\s)", current)
-        and re.match(r"^\s{0,3}=+\s*(?:\r?\n)?$", underline)
-    )
+class _DemoteSourceHeadingTreeprocessor(Treeprocessor):
+    def run(self, root: ElementTree.Element) -> ElementTree.Element:
+        generated_title_seen = False
+        for element in root.iter():
+            if element.tag == "h1":
+                if generated_title_seen:
+                    element.tag = "h2"
+                else:
+                    generated_title_seen = True
+            elif element.tag in {"h2", "h3", "h4", "h5"}:
+                element.tag = f"h{int(element.tag[1]) + 1}"
+        return root
 
 
-def _setext_to_atx_h2(line: str) -> str:
-    newline = "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
-    prefix, content = _blockquote_prefix_and_content(line.rstrip("\r\n"))
-    return prefix + "## " + content.lstrip() + newline
+class _BlockQuoteFencedCodePreprocessor(Preprocessor):
+    """Represent nested blockquote fences as inert HTML before Markdown parses headings."""
+
+    _opening = re.compile(r"^(?P<prefix>(?: {0,3}>\s*)+)(?P<fence>`{3,}|~{3,})(?P<info>[^\r\n]*)$")
+
+    def run(self, lines: list[str]) -> list[str]:
+        output: list[str] = []
+        index = 0
+        while index < len(lines):
+            opening = self._opening.match(lines[index])
+            if opening is None or not self._valid_opening(opening):
+                output.append(lines[index])
+                index += 1
+                continue
+            block = self._collect_block(lines, index, opening)
+            if block is None:
+                output.append(lines[index])
+                index += 1
+                continue
+            placeholder, next_index = block
+            output.append(opening.group("prefix") + placeholder)
+            index = next_index
+        return output
+
+    @staticmethod
+    def _valid_opening(opening: re.Match[str]) -> bool:
+        return opening.group("fence")[0] != "`" or "`" not in opening.group("info")
+
+    def _collect_block(self, lines: list[str], index: int, opening: re.Match[str]) -> tuple[str, int] | None:
+        marker = opening.group("fence")
+        quote_depth = _blockquote_depth(opening.group("prefix"))
+        content: list[str] = []
+        for candidate_index in range(index + 1, len(lines)):
+            prefix, candidate = _split_blockquote_prefix(lines[candidate_index])
+            if _blockquote_depth(prefix) != quote_depth:
+                return None
+            if re.fullmatch(rf"{re.escape(marker[0])}{{{len(marker)},}}\s*", candidate):
+                return self._store_code_block(content, opening.group("info")), candidate_index + 1
+            content.append(candidate)
+        return None
+
+    def _store_code_block(self, content: list[str], info: str) -> str:
+        language = info.strip().split(maxsplit=1)[0] if info.strip() else ""
+        code_class = f' class="language-{escape(language, quote=True)}"' if language else ""
+        markup = f"<pre><code{code_class}>{escape(chr(10).join(content))}</code></pre>"
+        return self.md.htmlStash.store(markup)
 
 
-def _blockquote_prefix_and_content(line: str) -> tuple[str, str]:
-    match = re.match(r"^(\s{0,3}(?:>\s*)*)(.*)$", line)
-    assert match is not None
-    return match.group(1), match.group(2)
+def _split_blockquote_prefix(line: str) -> tuple[str, str]:
+    match = re.match(r"^((?: {0,3}>\s*)+)(.*)$", line)
+    return (match.group(1), match.group(2)) if match else ("", line)
+
+
+def _blockquote_depth(prefix: str) -> int:
+    return prefix.count(">")
+
+
+class _RawH1Demoter(HTMLParser):
+    """Demote raw source H1 tags without interpreting escaped code text as markup."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.parts: list[str] = []
+        self._h1_count = 0
+        self._h1_end_tags: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        raw = self.get_starttag_text() or f"<{tag}>"
+        if tag.casefold() == "h1":
+            self._h1_count += 1
+            replacement = "h1" if self._h1_count == 1 else "h2"
+            self._h1_end_tags.append(replacement)
+            self.parts.append(re.sub(r"^(<\s*)h1\b", rf"\1{replacement}", raw, flags=re.IGNORECASE))
+            return
+        self.parts.append(raw)
+
+    def handle_startendtag(self, tag: str, attrs) -> None:
+        raw = self.get_starttag_text() or f"<{tag} />"
+        if tag.casefold() == "h1":
+            self._h1_count += 1
+            replacement = "h1" if self._h1_count == 1 else "h2"
+            self.parts.append(re.sub(r"^(<\s*)h1\b", rf"\1{replacement}", raw, flags=re.IGNORECASE))
+            return
+        self.parts.append(raw)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "h1" and self._h1_end_tags:
+            self.parts.append(f"</{self._h1_end_tags.pop()}>")
+            return
+        self.parts.append(f"</{tag}>")
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+    def handle_entityref(self, name: str) -> None:
+        self.parts.append(f"&{name};")
+
+    def handle_charref(self, name: str) -> None:
+        self.parts.append(f"&#{name};")
+
+    def handle_comment(self, data: str) -> None:
+        self.parts.append(f"<!--{data}-->")
+
+    def handle_decl(self, decl: str) -> None:
+        self.parts.append(f"<!{decl}>")
+
+
+def _demote_raw_html_h1_after_title(html: str) -> str:
+    parser = _RawH1Demoter()
+    parser.feed(html)
+    parser.close()
+    return "".join(parser.parts)
 
 
 def _virtual_source_path(source: SourcePage) -> Path:

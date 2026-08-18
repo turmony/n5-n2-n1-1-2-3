@@ -27,10 +27,14 @@ def _article(html: str) -> str:
 
 
 def _site_article_containing(site: Path, text: str) -> str:
+    return _article(_site_page_containing(site, text))
+
+
+def _site_page_containing(site: Path, text: str) -> str:
     for page in site.rglob("index.html"):
-        article = _article(page.read_text(encoding="utf-8"))
-        if text in article:
-            return article
+        html = page.read_text(encoding="utf-8")
+        if text in _article(html):
+            return html
     raise AssertionError(f"No generated article contains {text!r}")
 
 
@@ -49,7 +53,7 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
     (assets / "reader.js").write_text("", encoding="utf-8")
     config_file = base / "mkdocs.yml"
     config_file.write_text(
-        "site_name: JLPT\ntheme:\n  name: material\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n",
+        "site_name: JLPT\ntheme:\n  name: material\nmarkdown_extensions:\n  - pymdownx.superfences\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n",
         encoding="utf-8",
     )
     return docs, config_file, base / "site"
@@ -220,18 +224,28 @@ class ReaderPluginTests(unittest.TestCase):
                 "   # 缩进 ATX\n\nSetext\n======\n\n> # 引用标题\n\n> > # 嵌套引用标题\n\n"
                 "> 引用 Setext\n> =====\n\n"
                 '<h1 class="raw">原始 H1</h1>\n\n```markdown\n# code sample\n```\n\n'
-                "````markdown\n```\n# FENCED_SENTINEL\n```\n````\n\n    # indented code\n",
+                "````markdown\n```\n# FENCED_SENTINEL\n```\n````\n\n    # indented code\n"
+                "> ```markdown\n> # BLOCKQUOTE_FENCED_CODE\n> ```\n\n"
+                ">     # BLOCKQUOTE_INDENTED_CODE\n\n"
+                "inline `<h1>INLINE_CODE</h1>`\n\n"
+                "```invalid`info\nnot a valid opener\n```\n\n# REAL_H1_AFTER_INVALID_FENCE\n",
                 encoding="utf-8",
             )
 
             build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
 
-            article = _site_article_containing(site, "# code sample")
+            page_html = _site_page_containing(site, "# code sample")
+            article = _article(page_html)
             self.assertEqual(article.count("<h1"), 1)
             self.assertIn("<h2", article)
             self.assertIn("# code sample", article)
             self.assertIn("# FENCED_SENTINEL", article)
             self.assertIn("# indented code", article)
+            self.assertIn('<code class="language-markdown"># BLOCKQUOTE_FENCED_CODE', article)
+            self.assertIn("<code># BLOCKQUOTE_INDENTED_CODE", article)
+            self.assertIn("&lt;h1&gt;INLINE_CODE&lt;/h1&gt;", article)
+            self.assertIn("REAL_H1_AFTER_INVALID_FENCE", article)
+            self.assertIn('href="#REAL_H1_AFTER_INVALID_FENCE"', page_html)
 
     def test_navigation_hoists_root_folders_and_orders_date_bearing_papers_newest_first(self) -> None:
         with TemporaryDirectory() as directory:
