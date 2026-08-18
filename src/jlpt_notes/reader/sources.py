@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 from urllib.parse import quote
 
 from .metadata import DocumentMetadata, ParsedMarkdown, parse_markdown
@@ -51,8 +52,11 @@ def load_source_pages(root: Path) -> tuple[SourcePage, ...]:
     resolved_root = root.resolve(strict=True)
     pages: list[SourcePage] = []
     for path in iter_supported_visible_source_files(resolved_root):
+        resolved_path = _resolved_below(path, resolved_root)
+        if resolved_path is None or path.is_symlink():
+            continue
         relative_path = path.relative_to(resolved_root)
-        content = path.read_bytes()
+        content = resolved_path.read_bytes()
         text = content.decode("utf-8")
         if path.suffix.lower() == ".jsonl":
             parsed = _parse_jsonl(relative_path, text)
@@ -117,11 +121,16 @@ def iter_supported_visible_source_files(root: Path) -> tuple[Path, ...]:
     paths: list[Path] = []
     for directory, directory_names, file_names in os.walk(resolved_root, followlinks=False):
         current = Path(directory)
+        if _resolved_below_or_same(current, resolved_root) is None:
+            directory_names[:] = []
+            continue
         directory_names[:] = sorted(
             (
                 name
                 for name in directory_names
-                if not name.startswith(".") and not (current / name).is_symlink()
+                if not name.startswith(".")
+                and not _is_directory_link(current / name)
+                and _resolved_below(current / name, resolved_root) is not None
             ),
             key=lambda name: (name.casefold(), name),
         )
@@ -129,9 +138,41 @@ def iter_supported_visible_source_files(root: Path) -> tuple[Path, ...]:
             path = current / name
             if name.startswith(".") or path.is_symlink() or path.suffix.lower() not in {".md", ".jsonl"}:
                 continue
-            if path.is_file():
+            if path.is_file() and _resolved_below(path, resolved_root) is not None:
                 paths.append(path)
     return tuple(paths)
+
+
+def _is_directory_link(path: Path) -> bool:
+    """Reject symlink, junction, and other reparse-point directories."""
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    if callable(is_junction):
+        try:
+            if is_junction():
+                return True
+        except OSError:
+            return True
+    try:
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    except OSError:
+        return True
+    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+
+
+def _resolved_below(path: Path, root: Path) -> Path | None:
+    resolved = _resolved_below_or_same(path, root)
+    return resolved if resolved is not None and resolved != root else None
+
+
+def _resolved_below_or_same(path: Path, root: Path) -> Path | None:
+    try:
+        resolved = path.resolve(strict=True)
+        resolved.relative_to(root)
+    except (OSError, ValueError):
+        return None
+    return resolved
 
 
 def _parse_jsonl(relative_path: Path, text: str) -> ParsedMarkdown:

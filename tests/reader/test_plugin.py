@@ -10,6 +10,8 @@ from urllib.parse import unquote, urljoin, urlsplit
 from mkdocs.commands.build import build
 from mkdocs.config import load_config
 
+from jlpt_notes.reader.plugin import _refresh_reused_generation
+
 
 class _HrefParser(HTMLParser):
     def __init__(self) -> None:
@@ -130,6 +132,26 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
 
 
 class ReaderPluginTests(unittest.TestCase):
+    def test_cached_generation_refresh_changes_only_generation_markers(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "index.html"
+            old = "old-generation"
+            new = "new-generation"
+            path.write_text(
+                '<meta name="jlpt-generation" content="old-generation">\n'
+                '<div class="jlpt-page-state" data-page-key="./" '
+                'data-generation="old-generation"></div>\n'
+                '<p>old-generation is learner content</p>\n',
+                encoding="utf-8",
+            )
+
+            _refresh_reused_generation(path, new, old)
+
+            refreshed = path.read_text(encoding="utf-8")
+            self.assertIn('content="new-generation"', refreshed)
+            self.assertIn('data-generation="new-generation"', refreshed)
+            self.assertIn("old-generation is learner content", refreshed)
+
     def test_theme_asset_retention_does_not_reintroduce_linked_source_files(self) -> None:
         with TemporaryDirectory() as directory, TemporaryDirectory() as outside_directory:
             docs, config_file, site = _write_reader_config(Path(directory))

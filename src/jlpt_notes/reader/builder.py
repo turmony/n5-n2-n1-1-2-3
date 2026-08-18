@@ -23,9 +23,17 @@ class BuildResult:
     version: str | None = None
     error: str | None = None
     log_path: Path | None = None
+    rendered_pages: int = 0
+    reused_pages: int = 0
 
 
-def build_site(source_root: Path, config_path: Path, destination: Path) -> BuildResult:
+def build_site(
+    source_root: Path,
+    config_path: Path,
+    destination: Path,
+    *,
+    previous_site: Path | None = None,
+) -> BuildResult:
     """Build *source_root* into a new external temporary *destination*.
 
     A failed build removes only the directory created by this call and leaves
@@ -38,16 +46,33 @@ def build_site(source_root: Path, config_path: Path, destination: Path) -> Build
         if target == source or _is_below(target, source):
             raise ValueError("The temporary site destination must be outside the source directory")
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.mkdir(exist_ok=False)
+        previous = previous_site.resolve(strict=True) if previous_site is not None else None
+        if previous is not None:
+            if previous == target or not (previous / "index.html").is_file():
+                raise ValueError("The reusable reader site must be a complete different generation")
+            shutil.copytree(previous, target, copy_function=shutil.copy2)
+        else:
+            target.mkdir(exist_ok=False)
         created = True
         config = load_config(
             config_file=str(config_path.resolve(strict=True)),
             docs_dir=str(source),
             site_dir=str(target),
         )
-        build(config)
+        if previous is not None:
+            reader_plugin = config.plugins.get("jlpt_reader")
+            if reader_plugin is None:
+                raise ValueError("The reader plugin is required for incremental builds")
+            reader_plugin.configure_incremental(previous)
+        build(config, dirty=previous is not None)
         version = _read_generation_version(target)
-        return BuildResult(success=True, version=version)
+        reader_plugin = config.plugins.get("jlpt_reader")
+        return BuildResult(
+            success=True,
+            version=version,
+            rendered_pages=int(getattr(reader_plugin, "rendered_pages", 0)),
+            reused_pages=int(getattr(reader_plugin, "reused_pages", 0)),
+        )
     except Exception as error:
         if created:
             shutil.rmtree(target, ignore_errors=True)
@@ -126,6 +151,30 @@ class SiteStore:
             if obsolete is not None and obsolete != candidate:
                 self._retired.add(obsolete)
             self._collect_retired_locked()
+
+    def prepare(self, site_dir: Path) -> Path:
+        """Validate capacity and destination before a caller creates a build."""
+        candidate = site_dir.resolve(strict=False)
+        if not _is_below(candidate, self._session_root):
+            raise ValueError("Reader sites must be contained by the session directory")
+        with self._lock:
+            self._collect_retired_locked()
+            self._require_publication_capacity_locked()
+            if candidate.exists():
+                raise FileExistsError(candidate)
+        return candidate
+
+    def discard(self, site_dir: Path) -> None:
+        """Retire a contained candidate that was built but never activated."""
+        candidate = site_dir.resolve(strict=False)
+        if not _is_below(candidate, self._session_root):
+            raise ValueError("Reader sites must be contained by the session directory")
+        with self._lock:
+            if candidate in {self._current, self._previous} or self._leases.get(candidate, 0):
+                raise ValueError("An active or leased reader generation cannot be discarded")
+            if candidate.exists():
+                self._retired.add(candidate)
+                self._collect_retired_locked()
 
     def resolve(self, request_path: str) -> Path | None:
         """Return an active-site file for inspection outside a streaming response.

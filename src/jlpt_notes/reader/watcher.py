@@ -88,12 +88,13 @@ class SourceWatcher:
         self,
         root: Path,
         on_change: Callable[[], None],
-        interval_seconds: float = 1.0,
-        debounce_seconds: float = 0.75,
+        interval_seconds: float = 0.5,
+        debounce_seconds: float = 0.5,
         *,
         on_error: Callable[[str], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
         snapshotter: Callable[[Path], tuple[FileStamp, ...]] = snapshot_sources,
+        initial_snapshot: tuple[FileStamp, ...] | None = None,
     ) -> None:
         if not math.isfinite(interval_seconds) or interval_seconds <= 0:
             raise ValueError("interval_seconds must be a positive finite number")
@@ -104,6 +105,8 @@ class SourceWatcher:
         self._clock = clock
         self._snapshotter = snapshotter
         self._detector = ChangeDetector(debounce_seconds)
+        if initial_snapshot is not None:
+            self._detector.observe(initial_snapshot, 0.0)
         self._stop_event = Event()
         self._thread: Thread | None = None
         self._lock = Lock()

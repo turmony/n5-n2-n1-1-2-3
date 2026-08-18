@@ -47,8 +47,17 @@ def parse_markdown(relative_path: Path, text: str) -> ParsedMarkdown:
     proposal = raw.get("proposal") if isinstance(raw.get("proposal"), dict) else {}
     source_id = _first_text(raw.get("id"), proposal.get("id"), _id_from_path(relative_path))
     level = _first_text(raw.get("level"), proposal.get("level"), _level_from_path(relative_path))
-    title = _first_text(raw.get("title"), proposal.get("title"), _first_heading(body), relative_path.stem)
     content_type = _content_type(relative_path, raw, proposal)
+    domain_title = raw.get("prompt") if content_type == "quiz-question" else None
+    title = _catalog_title(
+        _first_text(
+            raw.get("title"),
+            proposal.get("title"),
+            domain_title,
+            _first_heading(body),
+            relative_path.stem,
+        )
+    )
     display_title = _display_title(relative_path, source_id, level, title, content_type)
     tags_value = raw.get("tags", proposal.get("tags", []))
     tags = tuple(str(value) for value in tags_value) if isinstance(tags_value, list) else ()
@@ -85,8 +94,19 @@ def _level_from_path(relative_path: Path) -> str | None:
 
 
 def _id_from_path(relative_path: Path) -> str | None:
-    match = re.fullmatch(r"(?i)(N[1-5]-[A-Z]+-\d+)", relative_path.stem)
+    match = re.match(r"(?i)(N[1-5]-[A-Z]+-\d+)(?:$|[-_.])", relative_path.stem)
     return match.group(1).upper() if match else None
+
+
+def _catalog_title(value: str | None, limit: int = 80) -> str | None:
+    if value is None:
+        return None
+    # Collapse layout whitespace while preserving Japanese ideographic spaces,
+    # which quiz prompts use as meaningful answer blanks such as ``（　）``.
+    normalized = re.sub(r"[ \t\r\n\f\v]+", " ", value).strip()
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 1].rstrip() + "…"
 
 
 def _first_heading(body: str) -> str | None:
@@ -112,7 +132,12 @@ def _content_type(relative_path: Path, raw: dict[str, Any], proposal: dict[str, 
         return "review"
     if "/history/" in f"/{path}" or path.startswith("history/"):
         return "history"
-    return _first_text(raw.get("kind"), proposal.get("kind")) or "document"
+    explicit_type = _first_text(raw.get("kind"), proposal.get("kind"))
+    if explicit_type:
+        return explicit_type
+    if "/grammar/" in f"/{path}" or path.startswith("grammar/"):
+        return "grammar"
+    return "document"
 
 
 def _display_title(
@@ -124,14 +149,47 @@ def _display_title(
 ) -> str:
     safe_title = title or relative_path.stem
     if content_type == "draft":
-        return f"{source_id}｜草稿｜{safe_title}" if source_id else f"草稿｜{safe_title}"
+        if source_id:
+            title_without_id = _remove_leading_identity(safe_title, source_id)
+            return f"{source_id}｜草稿｜{title_without_id or safe_title}"
+        return f"草稿｜{safe_title}"
     if source_id:
+        if _has_leading_identity(safe_title, source_id):
+            return safe_title
         return f"{source_id}｜{safe_title}"
     if content_type in {"quiz-result", "quiz-question", "review", "history"}:
         date_match = re.search(r"\d{4}-\d{2}-\d{2}", relative_path.as_posix())
-        pieces = [piece for piece in (level, date_match.group(0) if date_match else None, safe_title) if piece]
+        pieces = []
+        for piece in (level, date_match.group(0) if date_match else None):
+            if piece and not _has_leading_identity(safe_title, piece):
+                pieces.append(piece)
+        pieces.append(safe_title)
         return "｜".join(pieces)
-    return f"{level}｜{safe_title}" if level else safe_title
+    return (
+        f"{level}｜{safe_title}"
+        if level and not _has_leading_identity(safe_title, level)
+        else safe_title
+    )
+
+
+def _has_leading_identity(title: str, identity: str) -> bool:
+    return bool(
+        re.match(
+            rf"^{re.escape(identity)}(?=$|[\s｜|:：\-—])",
+            title,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _remove_leading_identity(title: str, identity: str) -> str:
+    return re.sub(
+        rf"^{re.escape(identity)}(?:\s*[｜|:：\-—]\s*|\s+)",
+        "",
+        title,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
 
 
 def _display_fields(
@@ -142,9 +200,14 @@ def _display_fields(
     tags: tuple[str, ...],
 ) -> tuple[tuple[str, str], ...]:
     def value(name: str, *alternatives: str) -> str | None:
-        return _first_text(
-            raw.get(name), proposal.get(name), *(raw.get(key) for key in alternatives), *(proposal.get(key) for key in alternatives)
-        )
+        candidates = [raw.get(name), proposal.get(name)]
+        for key in alternatives:
+            candidates.extend((raw.get(key), proposal.get(key)))
+        for candidate in candidates:
+            rendered = _display_metadata_value(candidate)
+            if rendered:
+                return rendered
+        return None
 
     entries: list[tuple[str, str]] = []
     if level:
@@ -166,3 +229,31 @@ def _display_fields(
         if field_value:
             entries.append((label, field_value))
     return tuple(entries)
+
+
+def _display_metadata_value(value: object) -> str | None:
+    if isinstance(value, str):
+        return value.strip() or None
+    if value is None:
+        return None
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        parts = []
+        for key in sorted(value, key=lambda item: (str(item).casefold(), str(item))):
+            rendered = _display_metadata_value(value[key])
+            if rendered:
+                parts.append(f"{key}: {rendered}")
+        return "；".join(parts) or None
+    if isinstance(value, list):
+        parts = [
+            rendered
+            for item in value
+            if (rendered := _display_metadata_value(item)) is not None
+        ]
+        return "、".join(parts) or None
+    return str(value)

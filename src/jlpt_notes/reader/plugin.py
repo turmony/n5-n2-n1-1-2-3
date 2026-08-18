@@ -13,7 +13,7 @@ from xml.etree import ElementTree
 import bleach
 from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
-from mkdocs import plugins
+from mkdocs import plugins, utils
 from mkdocs.config import base, config_options as c
 from mkdocs.structure.files import File, Files
 from pymdownx.slugs import slugify
@@ -28,25 +28,70 @@ class ReaderPluginConfig(base.Config):
     assets_dir = c.Type(str, default="assets")
 
 
+class _ReaderVirtualFile(File):
+    """Let MkDocs dirty builds skip copied HTML for byte-identical sources."""
+
+    def __init__(self, *args: Any, reader_modified: bool = True, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reader_modified = reader_modified
+
+    def is_modified(self) -> bool:
+        return self.reader_modified
+
+
 class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
     """Expose a read-only source tree as generated MkDocs pages."""
+
+    def configure_incremental(self, previous_site: Path) -> None:
+        """Reuse one immutable published generation as a build input copy."""
+        self._incremental_site = previous_site.resolve(strict=True)
 
     def on_config(self, config, **kwargs: Any):
         config["mdx_configs"].setdefault("toc", {}).setdefault("slugify", slugify())
         config["markdown_extensions"].append(ReaderHeadingExtension())
         self._source_root = Path(config.docs_dir).resolve(strict=True)
-        self._config_root = Path(config.config_file_path).resolve().parent
+        self._config_path = Path(config.config_file_path).resolve(strict=True)
+        self._config_root = self._config_path.parent
         self._pages = load_source_pages(self._source_root)
         self._pages_by_uri: dict[str, SourcePage] = {}
         self._files_by_relative_path: dict[Path, File] = {}
         self._url_hashes: dict[str, str] = {}
+        self._previous_manifest: dict[str, Any] | None = None
+        self._previous_search: dict[str, Any] | None = None
+        self._incremental_enabled = False
+        self._modified_urls: set[str] = set()
+        self._reused_files: list[File] = []
+        self.rendered_pages = 0
+        self.reused_pages = 0
+        previous_site = getattr(self, "_incremental_site", None)
+        if previous_site is not None:
+            try:
+                manifest = json.loads(
+                    (previous_site / "reader-version.json").read_text(encoding="utf-8")
+                )
+                search = json.loads(
+                    (previous_site / "search/search_index.json").read_text(encoding="utf-8")
+                )
+                if (
+                    not isinstance(manifest.get("version"), str)
+                    or not manifest["version"]
+                    or not isinstance(manifest.get("pages"), dict)
+                    or not isinstance(search.get("docs"), list)
+                ):
+                    raise ValueError("incomplete incremental reader metadata")
+                self._previous_manifest = manifest
+                self._previous_search = search
+            except (OSError, ValueError, json.JSONDecodeError):
+                self._previous_manifest = None
+                self._previous_search = None
         return config
 
     def on_files(self, files: Files, config, **kwargs: Any) -> Files:
         retained = [file for file in files if not _originates_below(file, self._source_root)]
         virtual: list[File] = []
+        source_files: list[tuple[SourcePage, _ReaderVirtualFile]] = []
         for source in self._pages:
-            file = File(
+            file = _ReaderVirtualFile(
                 _virtual_source_path(source).as_posix(),
                 str(self._source_root),
                 config.site_dir,
@@ -56,6 +101,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             self._pages_by_uri[file.src_uri] = source
             self._files_by_relative_path[source.relative_path] = file
             virtual.append(file)
+            source_files.append((source, file))
         catalog = build_catalog_page(self._pages)
         catalog = SourcePage(
             relative_path=catalog.relative_path,
@@ -65,7 +111,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             content_hash=catalog.content_hash,
             warning=catalog.warning,
         )
-        catalog_file = File(
+        catalog_file = _ReaderVirtualFile(
             "index.md",
             str(self._source_root),
             config.site_dir,
@@ -74,6 +120,35 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         catalog_file.content_string = catalog.markdown
         self._pages_by_uri[catalog_file.src_uri] = catalog
         virtual.insert(0, catalog_file)
+        source_files.insert(0, (catalog, catalog_file))
+
+        navigation_fingerprint = _navigation_fingerprint(source_files)
+        presentation_fingerprint = _presentation_fingerprint(
+            self._config_path,
+            self._config_root,
+            self.config.assets_dir,
+        )
+        previous = self._previous_manifest or {}
+        previous_hashes = previous.get("pages", {})
+        self._incremental_enabled = bool(
+            self._previous_search is not None
+            and previous.get("navigation") == navigation_fingerprint
+            and previous.get("presentation") == presentation_fingerprint
+        )
+        if getattr(self, "_incremental_site", None) is not None and not self._incremental_enabled:
+            utils.clean_directory(config.site_dir)
+        for source, file in source_files:
+            file.reader_modified = not self._incremental_enabled or (
+                previous_hashes.get(file.url) != source.content_hash
+            )
+            if file.reader_modified:
+                self._modified_urls.add(file.url)
+                self.rendered_pages += 1
+            else:
+                self._reused_files.append(file)
+                self.reused_pages += 1
+        self._navigation_hash = navigation_fingerprint
+        self._presentation_hash = presentation_fingerprint
         for name in ("reader.css", "reader.js"):
             source_path = self._config_root / self.config.assets_dir / name
             file = File(
@@ -144,13 +219,43 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             self._url_hashes[page.file.url] = source.content_hash
         return context
 
+    @plugins.event_priority(-100)
     def on_post_build(self, config, **kwargs: Any) -> None:
+        if self._incremental_enabled:
+            self._merge_incremental_search(Path(config.site_dir))
+            previous_generation = str((self._previous_manifest or {})["version"])
+            for file in self._reused_files:
+                _refresh_reused_generation(
+                    Path(file.abs_dest_path),
+                    self._generation_version,
+                    previous_generation,
+                )
         manifest = {
             "version": self._generation_version,
+            "navigation": self._navigation_hash,
+            "presentation": self._presentation_hash,
             "pages": dict(sorted(self._url_hashes.items())),
         }
         (Path(config.site_dir) / "reader-version.json").write_text(
             json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+
+    def _merge_incremental_search(self, site_dir: Path) -> None:
+        search_path = site_dir / "search/search_index.json"
+        current = json.loads(search_path.read_text(encoding="utf-8"))
+        previous_docs = list((self._previous_search or {}).get("docs", ()))
+        retained = [
+            document
+            for document in previous_docs
+            if not any(
+                _search_location_belongs_to(str(document.get("location", "")), url)
+                for url in self._modified_urls
+            )
+        ]
+        current["docs"] = retained + list(current.get("docs", ()))
+        search_path.write_text(
+            json.dumps(current, ensure_ascii=False, separators=(",", ":")),
             encoding="utf-8",
         )
 
@@ -416,3 +521,66 @@ def _sanitize_html(html: str) -> str:
         strip=True,
     )
     return cleaned
+
+
+def _navigation_fingerprint(
+    source_files: list[tuple[SourcePage, _ReaderVirtualFile]],
+) -> str:
+    values = [
+        (
+            source.relative_path.as_posix(),
+            file.url,
+            source.metadata.display_title,
+            source.metadata.source_id or "",
+            source.metadata.content_type,
+        )
+        for source, file in source_files
+    ]
+    encoded = json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+    return sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _presentation_fingerprint(
+    config_path: Path,
+    config_root: Path,
+    assets_dir: str,
+) -> str:
+    digest = sha256(b"jlpt-reader-rendering-v2\0")
+    candidates = [config_path]
+    for directory in (config_root / assets_dir, config_root / "overrides"):
+        if directory.is_dir():
+            candidates.extend(path for path in directory.rglob("*") if path.is_file())
+    for path in sorted(candidates, key=lambda item: (item.as_posix().casefold(), item.as_posix())):
+        if not path.is_file():
+            continue
+        digest.update(path.relative_to(config_root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _search_location_belongs_to(location: str, page_url: str) -> bool:
+    base = page_url.rstrip("/")
+    candidate = location.rstrip("/")
+    return candidate == base or location.startswith(f"{page_url}#")
+
+
+def _refresh_reused_generation(path: Path, generation: str, previous_generation: str) -> None:
+    html = path.read_bytes()
+    previous = previous_generation.encode("utf-8")
+    replacement = generation.encode("utf-8")
+    old_meta = b'<meta name="jlpt-generation" content="' + previous + b'">'
+    new_meta = b'<meta name="jlpt-generation" content="' + replacement + b'">'
+    state_start = html.find(b'<div class="jlpt-page-state"')
+    state_end = html.find(b">", state_start) if state_start >= 0 else -1
+    old_state = b'data-generation="' + previous + b'"'
+    new_state = b'data-generation="' + replacement + b'"'
+    state = html[state_start:state_end] if state_end >= 0 else b""
+    if html.count(old_meta) != 1 or state.count(old_state) != 1:
+        raise ValueError(f"Cached reader page has no generation markers: {path}")
+    refreshed = html.replace(old_meta, new_meta, 1)
+    state_start = refreshed.find(b'<div class="jlpt-page-state"')
+    state_end = refreshed.find(b">", state_start)
+    state = refreshed[state_start:state_end].replace(old_state, new_state, 1)
+    path.write_bytes(refreshed[:state_start] + state + refreshed[state_end:])

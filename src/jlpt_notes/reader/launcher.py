@@ -57,6 +57,14 @@ class _StatusPump:
             self._window.after(self._interval_ms, self._drain)
 
 
+def _stop_and_destroy(controller: ReaderController, window) -> None:
+    """Always release the Tk window even when session cleanup needs a retry."""
+    try:
+        controller.stop()
+    finally:
+        window.destroy()
+
+
 def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> int:
     """Open the manual launcher and keep the reader alive until it closes."""
     serving_program = Path(program_path).resolve(strict=True)
@@ -144,8 +152,7 @@ def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> 
         closing = True
         stop_button.configure(state="disabled")
         status_pump.close()
-        controller.stop()
-        window.destroy()
+        _stop_and_destroy(controller, window)
 
     copy_button = ttk.Button(frame, text="复制地址", command=copy_url)
     open_button = ttk.Button(frame, text="在本机打开", command=lambda: webbrowser.open(url_var.get()))

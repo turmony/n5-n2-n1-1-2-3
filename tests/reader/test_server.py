@@ -252,6 +252,53 @@ class ReaderServerTests(unittest.TestCase):
         with self.assertRaises(OSError):
             socket.create_connection(("127.0.0.1", self.server.bound_port), timeout=0.2)
 
+    def test_stop_waits_for_an_inflight_response_to_release_its_site_lease(self) -> None:
+        self.server.stop()
+        blocking_store = _BlockingLeaseStore(self.root)
+        blocking_store.activate(self.site)
+        self.server = ReadOnlyServer(blocking_store, "127.0.0.1", 0)
+        self.server.start()
+        response: list[tuple[int, bytes]] = []
+
+        def read_page() -> None:
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", self.server.bound_port, timeout=5
+            )
+            try:
+                connection.request("GET", "/")
+                reply = connection.getresponse()
+                response.append((reply.status, reply.read()))
+            finally:
+                connection.close()
+
+        client = Thread(target=read_page, name="test-inflight-client")
+        client.start()
+        self.assertTrue(blocking_store.lease_entered.wait(timeout=5))
+
+        stop_finished = Event()
+
+        def stop_server() -> None:
+            self.server.stop()
+            stop_finished.set()
+
+        stopping = Thread(target=stop_server, name="test-inflight-stop")
+        stopping.start()
+        try:
+            self.assertFalse(
+                stop_finished.wait(timeout=1.0),
+                "shutdown returned while a response still held the active generation",
+            )
+            self.assertFalse(blocking_store.lease_exited.is_set())
+        finally:
+            blocking_store.release_response.set()
+            stopping.join(timeout=5)
+            client.join(timeout=5)
+
+        self.assertFalse(stopping.is_alive())
+        self.assertFalse(client.is_alive())
+        self.assertTrue(blocking_store.lease_exited.is_set())
+        self.assertEqual(response, [(200, b"<h1>JLPT</h1>")])
+
 
 if __name__ == "__main__":
     unittest.main()

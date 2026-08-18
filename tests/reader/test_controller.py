@@ -8,7 +8,7 @@ from threading import Event, Lock, Thread, current_thread
 import unittest
 from unittest.mock import patch
 
-from jlpt_notes.reader.builder import BuildResult
+from jlpt_notes.reader.builder import BuildResult, SiteStore
 from jlpt_notes.reader.controller import ReaderController, ReaderStatus
 from jlpt_notes.reader.network import LanAddress, NetworkInspectionError
 
@@ -27,6 +27,16 @@ class _FakeStore:
         if self.__class__.activation_error is not None:
             raise self.__class__.activation_error
         self.activated.append(Path(site_dir))
+
+    def prepare(self, site_dir: Path) -> Path:
+        return Path(site_dir)
+
+    def discard(self, site_dir: Path) -> None:
+        return
+
+    @property
+    def current(self) -> Path | None:
+        return self.activated[-1] if self.activated else None
 
     def close(self) -> None:
         self.close_calls += 1
@@ -75,6 +85,22 @@ class _FakeWatcher:
         self.stop_calls += 1
 
 
+class _CleanupFailsOnceTemporary:
+    instances = []
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._temporary = TemporaryDirectory(*args, **kwargs)
+        self.name = self._temporary.name
+        self.cleanup_calls = 0
+        self.__class__.instances.append(self)
+
+    def cleanup(self) -> None:
+        self.cleanup_calls += 1
+        if self.cleanup_calls == 1:
+            raise PermissionError("site file is still open")
+        self._temporary.cleanup()
+
+
 class ReaderControllerTests(unittest.TestCase):
     def setUp(self) -> None:
         _FakeStore.instances.clear()
@@ -82,6 +108,7 @@ class ReaderControllerTests(unittest.TestCase):
         _FakeServer.instances.clear()
         _FakeServer.creation_errors.clear()
         _FakeWatcher.instances.clear()
+        _CleanupFailsOnceTemporary.instances.clear()
 
     def test_no_private_network_stays_local_and_reports_reason(self) -> None:
         with TemporaryDirectory() as directory, \
@@ -124,6 +151,73 @@ class ReaderControllerTests(unittest.TestCase):
 
             controller.stop()
 
+    def test_edit_during_initial_build_is_rebuilt_from_the_prebuild_snapshot(self) -> None:
+        from jlpt_notes.reader.watcher import SourceWatcher as RealSourceWatcher
+
+        class DeterministicWatcher:
+            def __init__(self, root: Path, on_change, **kwargs) -> None:
+                self._watcher = RealSourceWatcher(
+                    root,
+                    on_change,
+                    debounce_seconds=0.0,
+                    initial_snapshot=kwargs.get("initial_snapshot"),
+                )
+
+            def start(self) -> None:
+                self._watcher.poll_once(now=1.0)
+                self._watcher.poll_once(now=1.0)
+
+            def stop(self) -> None:
+                self._watcher.stop()
+
+        with self._runtime() as (root, config, program, statuses):
+            source = root / "card.md"
+            source.write_text("before build\n", encoding="utf-8")
+            builds: list[str] = []
+
+            def build(source_root, config_path, destination, *, previous_site=None):
+                builds.append(source.read_text(encoding="utf-8"))
+                if len(builds) == 1:
+                    source.write_text("edited during build\n", encoding="utf-8")
+                return BuildResult(True, version=f"v{len(builds)}")
+
+            with patch("jlpt_notes.reader.controller.SiteStore", _FakeStore), \
+                 patch("jlpt_notes.reader.controller.ReadOnlyServer", _FakeServer), \
+                 patch("jlpt_notes.reader.controller.SourceWatcher", DeterministicWatcher), \
+                 patch("jlpt_notes.reader.controller.build_site", side_effect=build), \
+                 patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+                 patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+                controller = ReaderController(root, config, program, on_status=statuses.append)
+                self.assertTrue(controller.start())
+
+                self.assertEqual(builds, ["before build\n", "edited during build\n"])
+                self.assertEqual(len(_FakeStore.instances[0].activated), 2)
+                controller.stop()
+
+    def test_rebuild_reuses_only_the_current_published_generation(self) -> None:
+        previous_sites: list[Path | None] = []
+
+        def build(source, config, destination, *, previous_site=None):
+            previous_sites.append(previous_site)
+            return BuildResult(True, version=f"v{len(previous_sites)}")
+
+        with self._runtime() as (root, config, program, statuses), \
+             patch("jlpt_notes.reader.controller.SiteStore", _FakeStore), \
+             patch("jlpt_notes.reader.controller.ReadOnlyServer", _FakeServer), \
+             patch("jlpt_notes.reader.controller.SourceWatcher", _FakeWatcher), \
+             patch("jlpt_notes.reader.controller.build_site", side_effect=build), \
+             patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+
+            self.assertTrue(controller.start())
+            current = _FakeStore.instances[0].current
+            self.assertIsNotNone(current)
+            self.assertTrue(controller.rebuild())
+
+            self.assertEqual(previous_sites, [None, current])
+            controller.stop()
+
     def test_missing_firewall_rule_binds_loopback_only(self) -> None:
         with self._runtime() as (root, config, program, statuses), \
              self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
@@ -158,6 +252,39 @@ class ReaderControllerTests(unittest.TestCase):
             self.assertIn("broken markdown", statuses[-1].message)
             self.assertIn(str(log), statuses[-1].message)
             controller.stop()
+
+    def test_start_uses_owned_session_cleanup_for_an_abandoned_reader_directory(self) -> None:
+        from jlpt_notes.reader import controller as controller_module
+        from jlpt_notes.reader.session import ReaderSessionDirectory
+
+        self.assertTrue(
+            hasattr(controller_module, "ReaderSessionDirectory"),
+            "controller still creates an unowned TemporaryDirectory",
+        )
+        with self._runtime() as (root, config, program, statuses), \
+             TemporaryDirectory() as session_parent:
+            parent = Path(session_parent)
+            abandoned = parent / "jlpt-reader-abandoned"
+            abandoned.mkdir()
+            (abandoned / "owner.lock").write_bytes(b"\0")
+            with patch("jlpt_notes.reader.controller.SiteStore", _FakeStore), \
+                 patch("jlpt_notes.reader.controller.ReadOnlyServer", _FakeServer), \
+                 patch("jlpt_notes.reader.controller.SourceWatcher", _FakeWatcher), \
+                 patch(
+                     "jlpt_notes.reader.controller.ReaderSessionDirectory",
+                     side_effect=lambda: ReaderSessionDirectory(parent=parent),
+                 ), \
+                 patch(
+                     "jlpt_notes.reader.controller.build_site",
+                     return_value=BuildResult(True, version="v1"),
+                 ), \
+                 patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+                 patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+                controller = ReaderController(root, config, program, on_status=statuses.append)
+                self.assertTrue(controller.start())
+
+                self.assertFalse(abandoned.exists())
+                controller.stop()
 
     def test_activation_failure_gets_a_temporary_log_and_never_starts_http(self) -> None:
         with self._runtime() as (root, config, program, statuses), \
@@ -223,7 +350,7 @@ class ReaderControllerTests(unittest.TestCase):
 
         with self._runtime() as (root, config, program, statuses), \
              self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
-             patch("jlpt_notes.reader.controller.TemporaryDirectory", side_effect=delayed_temporary), \
+             patch("jlpt_notes.reader.controller.ReaderSessionDirectory", side_effect=delayed_temporary), \
              patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
              patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
             controller = ReaderController(root, config, program, on_status=statuses.append)
@@ -293,6 +420,73 @@ class ReaderControllerTests(unittest.TestCase):
                 self.assertEqual(statuses[-1].state, "error")
                 self.assertIn(str(log), statuses[-1].message)
                 controller.stop()
+
+    def test_repeated_rejected_candidates_are_bounded_and_last_good_stays_readable(self) -> None:
+        class RejectingStore(SiteStore):
+            def __init__(self, session_root: Path) -> None:
+                super().__init__(session_root)
+                self.reject_publication = False
+
+            def activate(self, site_dir: Path) -> None:
+                if self.reject_publication:
+                    raise RuntimeError("publication refused")
+                super().activate(site_dir)
+
+        with self._runtime() as (root, config, program, statuses), \
+             TemporaryDirectory() as session_parent:
+            from jlpt_notes.reader.session import ReaderSessionDirectory
+
+            builds: list[Path] = []
+
+            def build(source, config_path, destination, *, previous_site=None):
+                destination.mkdir()
+                (destination / "index.html").write_text(
+                    f"build-{len(builds) + 1}", encoding="utf-8"
+                )
+                builds.append(destination)
+                return BuildResult(True, version=f"v{len(builds)}")
+
+            with patch("jlpt_notes.reader.controller.SiteStore", RejectingStore), \
+                 patch("jlpt_notes.reader.controller.ReadOnlyServer", _FakeServer), \
+                 patch("jlpt_notes.reader.controller.SourceWatcher", _FakeWatcher), \
+                 patch(
+                     "jlpt_notes.reader.controller.ReaderSessionDirectory",
+                     side_effect=lambda: ReaderSessionDirectory(parent=Path(session_parent)),
+                 ), \
+                 patch("jlpt_notes.reader.controller.build_site", side_effect=build), \
+                 patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+                 patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+                controller = ReaderController(root, config, program, on_status=statuses.append)
+                self.assertTrue(controller.start())
+                store = controller._store
+                assert isinstance(store, RejectingStore)
+                last_good = store.current
+                assert last_good is not None
+                store.reject_publication = True
+
+                with patch(
+                    "jlpt_notes.reader.builder.shutil.rmtree",
+                    side_effect=PermissionError("persistent cleanup failure"),
+                ):
+                    for _ in range(5):
+                        self.assertFalse(controller.rebuild())
+
+                actual_build_count = len(builds)
+                actual_current = store.current
+                active = store.resolve("index.html")
+                assert active is not None
+                active_text = active.read_text(encoding="utf-8")
+                session_dirs = [
+                    path for path in Path(controller._temporary.name).iterdir() if path.is_dir()
+                ]
+                cleanup_error_count = len(store.cleanup_errors)
+                controller.stop()
+
+                self.assertEqual(actual_build_count, 3)
+                self.assertEqual(actual_current, last_good)
+                self.assertEqual(active_text, "build-1")
+                self.assertEqual(len(session_dirs), 3)
+                self.assertEqual(cleanup_error_count, 2)
 
     def test_rebuild_coalesces_while_an_existing_rebuild_is_busy(self) -> None:
         entered = Event()
@@ -563,6 +757,32 @@ class ReaderControllerTests(unittest.TestCase):
         self.assertEqual(len(window.after_calls), 1)
         self.assertEqual(window.after_calls[0][0], 25)
 
+    def test_launcher_destroys_the_window_even_when_stop_cleanup_raises(self) -> None:
+        from jlpt_notes.reader import launcher
+
+        self.assertTrue(
+            hasattr(launcher, "_stop_and_destroy"),
+            "launcher close needs an exception-safe cleanup boundary",
+        )
+        stop_and_destroy = getattr(launcher, "_stop_and_destroy")
+
+        class FailingController:
+            def stop(self) -> None:
+                raise PermissionError("locked session")
+
+        class FakeWindow:
+            def __init__(self) -> None:
+                self.destroy_calls = 0
+
+            def destroy(self) -> None:
+                self.destroy_calls += 1
+
+        window = FakeWindow()
+        with self.assertRaisesRegex(PermissionError, "locked session"):
+            stop_and_destroy(FailingController(), window)
+
+        self.assertEqual(window.destroy_calls, 1)
+
     def test_stop_is_idempotent_and_stops_watcher_server_store(self) -> None:
         with self._runtime() as (root, config, program, statuses), \
              self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
@@ -574,6 +794,36 @@ class ReaderControllerTests(unittest.TestCase):
             controller.stop()
             controller.stop()
 
+            self.assertEqual(_FakeWatcher.instances[0].stop_calls, 1)
+            self.assertEqual(_FakeServer.instances[0].stop_calls, 1)
+            self.assertEqual(_FakeStore.instances[0].close_calls, 1)
+            self.assertEqual([status.state for status in statuses].count("stopped"), 1)
+
+    def test_stop_retries_only_the_temporary_cleanup_that_failed(self) -> None:
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
+             patch(
+                 "jlpt_notes.reader.controller.ReaderSessionDirectory",
+                 _CleanupFailsOnceTemporary,
+             ), \
+             patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            self.assertTrue(controller.start())
+            session = _CleanupFailsOnceTemporary.instances[0]
+
+            with self.assertRaisesRegex(PermissionError, "still open"):
+                controller.stop()
+
+            self.assertIs(controller._temporary, session)
+            self.assertTrue(Path(session.name).is_dir())
+            self.assertEqual([status.state for status in statuses].count("stopped"), 0)
+
+            controller.stop()
+            controller.stop()
+
+            self.assertEqual(session.cleanup_calls, 2)
+            self.assertFalse(Path(session.name).exists())
             self.assertEqual(_FakeWatcher.instances[0].stop_calls, 1)
             self.assertEqual(_FakeServer.instances[0].stop_calls, 1)
             self.assertEqual(_FakeStore.instances[0].close_calls, 1)
@@ -640,7 +890,7 @@ class ReaderControllerTests(unittest.TestCase):
     def _patched_runtime(self, *, build_results=None, build_side_effect=None):
         results = iter(build_results or ())
 
-        def fake_build(source, config, destination):
+        def fake_build(source, config, destination, *, previous_site=None):
             if build_side_effect is not None:
                 return build_side_effect(source, config, destination)
             return next(results)

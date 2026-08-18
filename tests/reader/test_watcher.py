@@ -93,6 +93,41 @@ class ReaderWatcherTests(unittest.TestCase):
 
         self.assertEqual(notifications, ["changed"])
 
+    def test_default_watcher_settles_a_stable_edit_within_half_a_second(self) -> None:
+        original = (FileStamp("a.md", 1, 1),)
+        changed = (FileStamp("a.md", 2, 2),)
+        snapshots = iter((original, changed, changed))
+        notifications: list[str] = []
+        watcher = SourceWatcher(
+            Path("unused"),
+            lambda: notifications.append("changed"),
+            snapshotter=lambda root: next(snapshots),
+        )
+
+        self.assertFalse(watcher.poll_once(now=0.0))
+        self.assertFalse(watcher.poll_once(now=1.0))
+        self.assertTrue(watcher.poll_once(now=1.5))
+        self.assertEqual(notifications, ["changed"])
+
+    def test_watcher_seed_detects_a_change_that_happened_before_start(self) -> None:
+        original = (FileStamp("a.md", 1, 1),)
+        changed = (FileStamp("a.md", 2, 2),)
+        notifications: list[str] = []
+        try:
+            watcher = SourceWatcher(
+                Path("unused"),
+                lambda: notifications.append("changed"),
+                debounce_seconds=0.5,
+                initial_snapshot=original,
+                snapshotter=lambda root: changed,
+            )
+        except TypeError as error:
+            self.fail(f"watcher cannot be seeded before the initial build: {error}")
+
+        self.assertFalse(watcher.poll_once(now=1.0))
+        self.assertTrue(watcher.poll_once(now=1.5))
+        self.assertEqual(notifications, ["changed"])
+
     def test_watcher_reports_callback_errors_and_keeps_polling(self) -> None:
         original = (FileStamp("a.md", 1, 1),)
         changed = (FileStamp("a.md", 2, 2),)

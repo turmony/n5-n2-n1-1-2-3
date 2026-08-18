@@ -5,6 +5,7 @@
   const FONT_KEY = "jlpt-reader-font-scale";
   const LAST_PAGE_KEY = "jlpt-reader-last-page";
   const SCROLL_KEY_PREFIX = "jlpt-reader-scroll:";
+  const VERSION_POLL_INTERVAL_MS = 1000;
   const UNMARKED_LEVEL = "__unmarked__";
   const TYPE_LABELS = {
     grammar: "正式语法",
@@ -107,6 +108,7 @@
   }
 
   const core = {
+    VERSION_POLL_INTERVAL_MS: VERSION_POLL_INTERVAL_MS,
     catalogEntryMatches: catalogEntryMatches,
     normalizeSearchText: normalizeSearchText,
     normalizeSearchRoute: normalizeSearchRoute,
@@ -436,5 +438,7 @@
   }
 
   document$.subscribe(function () { initializeReaderPage(); });
-  window.setInterval(function () { checkReaderVersion().catch(function () {}); }, 3000);
+  window.setInterval(function () {
+    checkReaderVersion().catch(function () {});
+  }, VERSION_POLL_INTERVAL_MS);
 }(typeof globalThis !== "undefined" ? globalThis : this));

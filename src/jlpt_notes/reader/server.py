@@ -20,7 +20,7 @@ class ReadOnlyServer:
     """Run a generated-site-only HTTP server on a background thread."""
 
     def __init__(self, store: SiteStore, host: str, port: int) -> None:
-        self._httpd = ThreadingHTTPServer((host, port), _handler_for(store))
+        self._httpd = _JoinableRequestServer((host, port), _handler_for(store))
         self._thread = Thread(
             target=self._httpd.serve_forever,
             name="jlpt-reader-http",
@@ -74,6 +74,13 @@ class ReadOnlyServer:
                 self._httpd.server_close()
             finally:
                 self._stop_complete.set()
+
+
+class _JoinableRequestServer(ThreadingHTTPServer):
+    """Track request workers so closing waits for every open site response."""
+
+    daemon_threads = False
+    block_on_close = True
 
 
 def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:

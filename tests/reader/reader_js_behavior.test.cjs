@@ -4,6 +4,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const core = require("../../reader/assets/reader.js");
 
+test("published-generation polling checks at least once per second", () => {
+  assert.equal(core.VERSION_POLL_INTERVAL_MS, 1000);
+});
+
 test("catalog filters combine level, type, and exact tags", () => {
   const entry = { level: "N3", type: "grammar", tags: ["接续", "易混"] };
   assert.equal(core.catalogEntryMatches(entry, { level: "N3", type: "grammar", tag: "接续" }), true);

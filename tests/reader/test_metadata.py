@@ -81,3 +81,98 @@ class ReaderMetadataTests(unittest.TestCase):
         block = render_metadata_block(parsed.metadata)
         self.assertNotIn("<script>", block)
         self.assertIn("&lt;script&gt;", block)
+
+    def test_real_quiz_schema_uses_a_normalized_prompt_instead_of_repeating_the_id(self) -> None:
+        parsed = parse_markdown(
+            Path("quizzes/questions/N5-Q-0001.md"),
+            '---\n{"id":"N5-Q-0001","level":"N5","item_type":"grammar_form",'
+            '"prompt":"昨日泊まったホテルは駅から遠くて、  あまり便利（　） 。"}\n---\n',
+        )
+
+        self.assertEqual(
+            parsed.metadata.display_title,
+            "N5-Q-0001｜昨日泊まったホテルは駅から遠くて、 あまり便利（　） 。",
+        )
+        self.assertNotEqual(parsed.metadata.display_title, "N5-Q-0001｜N5-Q-0001")
+
+    def test_catalog_title_truncates_a_long_prompt_at_a_unicode_boundary(self) -> None:
+        parsed = parse_markdown(
+            Path("quizzes/questions/N5-Q-0090.md"),
+            '---\n{"id":"N5-Q-0090","prompt":"' + ("日本語の長い設問" * 20) + '"}\n---\n',
+        )
+
+        title = parsed.metadata.display_title
+        self.assertTrue(title.startswith("N5-Q-0090｜日本語の長い設問"))
+        self.assertTrue(title.endswith("…"))
+        self.assertLessEqual(len(title), 91)
+
+    def test_history_heading_does_not_repeat_its_level_or_structured_id(self) -> None:
+        parsed = parse_markdown(
+            Path("history/N5-G-0004-revision-2.md"),
+            "# N5-G-0004 修订记录（第 2 版）\n",
+        )
+
+        self.assertEqual(parsed.metadata.source_id, "N5-G-0004")
+        self.assertEqual(parsed.metadata.display_title, "N5-G-0004 修订记录（第 2 版）")
+        self.assertEqual(parsed.metadata.display_title.count("N5-G-0004"), 1)
+        self.assertFalse(parsed.metadata.display_title.startswith("N5｜"))
+
+    def test_explicit_title_that_already_starts_with_id_is_not_prefixed_again(self) -> None:
+        parsed = parse_markdown(
+            Path("grammar/n5/N5-G-0001.md"),
+            '---\n{"id":"N5-G-0001","level":"N5",'
+            '"title":"N5-G-0001｜名词句"}\n---\n',
+        )
+
+        self.assertEqual(parsed.metadata.display_title, "N5-G-0001｜名词句")
+
+    def test_real_structured_source_schema_is_flattened_in_deterministic_key_order(self) -> None:
+        parsed = parse_markdown(
+            Path("grammar/n4/N4-G-0001.md"),
+            '---\n{"id":"N4-G-0001","title":"～例",'
+            '"source":{"material":"学习者提供的课程截图与学习笔记",'
+            '"lesson":"N4 第一个语法"}}\n---\n',
+        )
+
+        self.assertIn(
+            ("来源", "lesson: N4 第一个语法；material: 学习者提供的课程截图与学习笔记"),
+            parsed.metadata.fields,
+        )
+
+    def test_nested_source_lists_are_readable_and_hostile_markup_stays_escaped(self) -> None:
+        parsed = parse_markdown(
+            Path("grammar/n4/N4-G-0002.md"),
+            '---\n{"id":"N4-G-0002","title":"～例",'
+            '"source":[{"url":"<script>alert(1)</script>","label":"A&B"},"课堂"]}\n---\n',
+        )
+
+        fields = dict(parsed.metadata.fields)
+        self.assertIn("来源", fields)
+        source = fields.get("来源")
+        self.assertEqual(
+            source,
+            "label: A&B；url: <script>alert(1)</script>、课堂",
+        )
+        block = render_metadata_block(parsed.metadata)
+        self.assertNotIn("<script>", block)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", block)
+        self.assertIn("A&amp;B", block)
+
+    def test_grammar_path_fallback_applies_when_metadata_is_missing_or_malformed(self) -> None:
+        missing = parse_markdown(Path("grammar/n3/lesson.md"), "# 文法\n")
+        malformed = parse_markdown(
+            Path("grammar/n3/broken.md"),
+            "---\n{broken}\n---\n\n# 文法\n",
+        )
+
+        self.assertEqual(missing.metadata.content_type, "grammar")
+        self.assertEqual(malformed.metadata.content_type, "grammar")
+        self.assertIn("元数据无法解析", malformed.warning or "")
+
+    def test_grammar_path_fallback_does_not_override_a_valid_explicit_type(self) -> None:
+        parsed = parse_markdown(
+            Path("grammar/n3/word-list.md"),
+            '---\n{"kind":"vocabulary","title":"词汇补充"}\n---\n',
+        )
+
+        self.assertEqual(parsed.metadata.content_type, "vocabulary")

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sys
-from tempfile import TemporaryDirectory
 from threading import Lock, RLock
 from typing import Callable
 
@@ -16,7 +15,8 @@ from .firewall import (
 )
 from .network import private_lan_addresses
 from .server import ReadOnlyServer
-from .watcher import SourceWatcher
+from .session import ReaderSessionDirectory
+from .watcher import SourceWatcher, snapshot_sources
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,8 @@ class ReaderController:
         self._lifecycle_lock = RLock()
         self._build_lock = Lock()
         self._configuration_lock = Lock()
-        self._temporary: TemporaryDirectory[str] | None = None
+        self._stop_lock = Lock()
+        self._temporary: ReaderSessionDirectory | None = None
         self._store: SiteStore | None = None
         self._server: ReadOnlyServer | None = None
         self._watcher: SourceWatcher | None = None
@@ -87,7 +88,8 @@ class ReaderController:
                 with self._lifecycle_lock:
                     if self._stop_requested:
                         return False
-                temporary = TemporaryDirectory(prefix="jlpt-reader-")
+                source_baseline = snapshot_sources(self.root)
+                temporary = ReaderSessionDirectory()
                 with self._lifecycle_lock:
                     cancelled = self._stop_requested
                 if cancelled:
@@ -136,6 +138,7 @@ class ReaderController:
             watcher = SourceWatcher(
                 self.root,
                 self.rebuild,
+                initial_snapshot=source_baseline,
                 on_error=lambda message: self._publish(
                     ReaderStatus("error", f"资料更新监测出错：{message}", self._current_url())
                 ),
@@ -260,41 +263,71 @@ class ReaderController:
 
     def stop(self) -> None:
         """Stop watcher/server and delete only this session's temporary output."""
-        with self._lifecycle_lock:
-            if self._stop_requested:
-                return
-            self._stop_requested = True
-            watcher = self._watcher
+        with self._stop_lock:
+            with self._lifecycle_lock:
+                if self._stopped_published:
+                    return
+                self._stop_requested = True
+                watcher = self._watcher
 
-        if watcher is not None:
-            watcher.stop()
-        # A direct rebuild caller may not be the watcher thread. Wait until its
-        # publication is complete before closing the store and temp directory.
-        with self._configuration_lock:
-            with self._build_lock:
+            if watcher is not None:
+                watcher.stop()
                 with self._lifecycle_lock:
-                    server = self._server
-                    store = self._store
-                    temporary = self._temporary
-                    self._watcher = None
-                    self._server = None
-                    self._store = None
-                    self._temporary = None
-                    self._started = False
-                    self._lan_enabled = False
-                    self._addresses = ()
-                if server is not None:
-                    server.stop()
-                if store is not None:
-                    store.close()
-                if temporary is not None:
-                    temporary.cleanup()
+                    if self._watcher is watcher:
+                        self._watcher = None
 
-        with self._lifecycle_lock:
-            if self._stopped_published:
-                return
-            self._stopped_published = True
-        self._publish(ReaderStatus("stopped", "阅读器已停止。"))
+            # A direct rebuild caller may not be the watcher thread. Wait until
+            # its publication is complete before closing the server and store.
+            # Each successfully closed resource is forgotten individually; a
+            # failed later cleanup remains owned so a second stop can retry it.
+            with self._configuration_lock:
+                with self._build_lock:
+                    with self._lifecycle_lock:
+                        server = self._server
+                    if server is not None:
+                        server.stop()
+                        with self._lifecycle_lock:
+                            if self._server is server:
+                                self._server = None
+
+                    with self._lifecycle_lock:
+                        store = self._store if self._server is None else None
+                    if store is not None:
+                        store.close()
+                        with self._lifecycle_lock:
+                            if self._store is store:
+                                self._store = None
+
+                    with self._lifecycle_lock:
+                        temporary = (
+                            self._temporary
+                            if self._server is None and self._store is None
+                            else None
+                        )
+                    if temporary is not None:
+                        temporary.cleanup()
+                        with self._lifecycle_lock:
+                            if self._temporary is temporary:
+                                self._temporary = None
+
+                    with self._lifecycle_lock:
+                        self._started = False
+                        self._lan_enabled = False
+                        self._addresses = ()
+                        resources_closed = all(
+                            resource is None
+                            for resource in (
+                                self._watcher,
+                                self._server,
+                                self._store,
+                                self._temporary,
+                            )
+                        )
+                        if resources_closed:
+                            self._stopped_published = True
+
+            if resources_closed:
+                self._publish(ReaderStatus("stopped", "阅读器已停止。"))
 
     def _publish_network_status(self) -> ReaderStatus:
         """Inspect and publish current LAN eligibility without changing the OS."""
@@ -344,21 +377,45 @@ class ReaderController:
     def _next_build(self, store: SiteStore, temporary_root: Path) -> BuildResult:
         self._build_number += 1
         destination = temporary_root / f"site-{self._build_number:06d}"
-        result = build_site(self.root, self.config_path, destination)
+        try:
+            store.prepare(destination)
+        except Exception as error:
+            return self._publication_error(temporary_root, destination, error)
+        previous_site = store.current
+        if previous_site is None:
+            result = build_site(self.root, self.config_path, destination)
+        else:
+            result = build_site(
+                self.root,
+                self.config_path,
+                destination,
+                previous_site=previous_site,
+            )
         if not result.success:
             return result
         try:
             store.activate(destination)
         except Exception as error:
-            message = f"{type(error).__name__}: {error}"
-            log_path = temporary_root / f"{destination.name}.activation.log"
-            log_path.write_text(message + "\n", encoding="utf-8")
-            return BuildResult(
-                False,
-                error=message,
-                log_path=log_path,
-            )
+            try:
+                store.discard(destination)
+            except Exception as cleanup_error:
+                error = RuntimeError(
+                    f"{error}; candidate cleanup failed: "
+                    f"{type(cleanup_error).__name__}: {cleanup_error}"
+                )
+            return self._publication_error(temporary_root, destination, error)
         return result
+
+    @staticmethod
+    def _publication_error(
+        temporary_root: Path,
+        destination: Path,
+        error: Exception,
+    ) -> BuildResult:
+        message = f"{type(error).__name__}: {error}"
+        log_path = temporary_root / f"{destination.name}.activation.log"
+        log_path.write_text(message + "\n", encoding="utf-8")
+        return BuildResult(False, error=message, log_path=log_path)
 
     def _inspect_network(self) -> ReaderStatus:
         try:

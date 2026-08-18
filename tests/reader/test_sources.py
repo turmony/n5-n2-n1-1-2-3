@@ -1,6 +1,8 @@
 import hashlib
 from html.parser import HTMLParser
+import os
 from pathlib import Path
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -44,6 +46,42 @@ class ReaderSourceTests(unittest.TestCase):
                     ["events.jsonl", "grammar/card.md"],
                 )
                 self.assertEqual(pages[0].output_path.as_posix(), "events.jsonl.md")
+
+    @unittest.skipUnless(os.name == "nt", "NTFS junction behavior is Windows-specific")
+    def test_discovery_does_not_traverse_an_ntfs_junction_outside_the_root(self) -> None:
+        with TemporaryDirectory() as directory, TemporaryDirectory() as outside_directory:
+            root = Path(directory)
+            outside = Path(outside_directory)
+            (outside / "exposed.md").write_text("# must stay outside\n", encoding="utf-8")
+            junction = root / "linked-library"
+            completed = subprocess.run(
+                ["cmd.exe", "/d", "/c", "mklink", "/J", str(junction), str(outside)],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if completed.returncode != 0 or not getattr(junction, "is_junction", lambda: False)():
+                self.skipTest("当前测试卷不支持创建 NTFS junction")
+            try:
+                pages = load_source_pages(root)
+            finally:
+                os.rmdir(junction)
+
+            self.assertEqual(pages, ())
+
+    def test_discovery_does_not_traverse_a_directory_symlink_outside_the_root(self) -> None:
+        with TemporaryDirectory() as directory, TemporaryDirectory() as outside_directory:
+            root = Path(directory)
+            outside = Path(outside_directory)
+            (outside / "exposed.md").write_text("# must stay outside\n", encoding="utf-8")
+            linked = root / "linked-library"
+            try:
+                linked.symlink_to(outside, target_is_directory=True)
+            except OSError:
+                self.skipTest("当前环境不允许创建目录符号链接")
+
+            self.assertEqual(load_source_pages(root), ())
 
     def test_discovery_does_not_change_source_content_or_mtime(self) -> None:
         with TemporaryDirectory() as directory:
