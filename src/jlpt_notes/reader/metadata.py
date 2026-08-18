@@ -30,17 +30,22 @@ def parse_markdown(relative_path: Path, text: str) -> ParsedMarkdown:
     raw: dict[str, Any] = {}
     body = text
     warning = None
-    if text.startswith("---\n") and "\n---\n" in text[4:]:
-        metadata_text, body = text[4:].split("\n---\n", 1)
-        body = body.lstrip("\n")
+    frontmatter = re.match(r"\A---\r?\n(.*?)\r?\n---\r?\n", text, re.DOTALL)
+    if frontmatter:
+        metadata_text = frontmatter.group(1)
+        body = text[frontmatter.end() :].lstrip("\r\n")
         try:
             loaded = json.loads(metadata_text)
-            raw = loaded if isinstance(loaded, dict) else {}
+            if not isinstance(loaded, dict):
+                raise ValueError("frontmatter must be an object")
+            raw = loaded
         except json.JSONDecodeError:
+            warning = "元数据无法解析；正文仍以只读方式显示。"
+        except ValueError:
             warning = "元数据无法解析；正文仍以只读方式显示。"
 
     proposal = raw.get("proposal") if isinstance(raw.get("proposal"), dict) else {}
-    source_id = _first_text(raw.get("id"), proposal.get("id"))
+    source_id = _first_text(raw.get("id"), proposal.get("id"), _id_from_path(relative_path))
     level = _first_text(raw.get("level"), proposal.get("level"), _level_from_path(relative_path))
     title = _first_text(raw.get("title"), proposal.get("title"), _first_heading(body), relative_path.stem)
     content_type = _content_type(relative_path, raw, proposal)
@@ -77,6 +82,11 @@ def _first_text(*values: object) -> str | None:
 def _level_from_path(relative_path: Path) -> str | None:
     match = re.search(r"(?i)(?:^|[^a-z0-9])n([1-5])(?:$|[^a-z0-9])", relative_path.as_posix())
     return f"N{match.group(1)}" if match else None
+
+
+def _id_from_path(relative_path: Path) -> str | None:
+    match = re.fullmatch(r"(?i)(N[1-5]-[A-Z]+-\d+)", relative_path.stem)
+    return match.group(1).upper() if match else None
 
 
 def _first_heading(body: str) -> str | None:

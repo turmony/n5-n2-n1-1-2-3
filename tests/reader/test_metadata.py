@@ -48,6 +48,31 @@ class ReaderMetadataTests(unittest.TestCase):
         self.assertIn("元数据无法解析", parsed.warning or "")
         self.assertIn("# 可读正文", parsed.body)
 
+    def test_question_filename_supplies_id_when_metadata_is_absent(self) -> None:
+        parsed = parse_markdown(
+            Path("quizzes/questions/N5-Q-0090.md"), "# 词汇选择题\n\n正文\n"
+        )
+        self.assertEqual(parsed.metadata.source_id, "N5-Q-0090")
+        self.assertEqual(parsed.metadata.display_title, "N5-Q-0090｜词汇选择题")
+
+    def test_crlf_frontmatter_is_parsed_without_changing_readable_body(self) -> None:
+        parsed = parse_markdown(
+            Path("grammar/n5/N5-G-0001.md"),
+            "---\r\n{\"id\":\"N5-G-0001\",\"title\":\"～です\"}\r\n---\r\n\r\n# 核心用法\r\n正文\r\n",
+        )
+        self.assertEqual(parsed.metadata.display_title, "N5-G-0001｜～です")
+        self.assertEqual(parsed.body, "# 核心用法\r\n正文\r\n")
+
+    def test_non_object_frontmatter_warns_and_keeps_body(self) -> None:
+        for metadata_text in ("[]", '"text"'):
+            with self.subTest(metadata_text=metadata_text):
+                parsed = parse_markdown(
+                    Path("drafts/non-object.md"),
+                    f"---\n{metadata_text}\n---\n\n# 可读正文\n",
+                )
+                self.assertIn("元数据无法解析", parsed.warning or "")
+                self.assertEqual(parsed.body, "# 可读正文\n")
+
     def test_metadata_block_escapes_values(self) -> None:
         parsed = parse_markdown(
             Path("grammar/n5/x.md"),
