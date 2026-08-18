@@ -4,6 +4,7 @@ from hashlib import sha256
 from html import escape
 from html.parser import HTMLParser
 import json
+import posixpath
 from pathlib import Path
 import re
 from typing import Any
@@ -55,6 +56,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         self._pages = load_source_pages(self._source_root)
         self._pages_by_uri: dict[str, SourcePage] = {}
         self._files_by_relative_path: dict[Path, File] = {}
+        self._pager_neighbours: dict[str, tuple[tuple[str, str] | None, tuple[str, str] | None]] = {}
         self._url_hashes: dict[str, str] = {}
         self._previous_manifest: dict[str, Any] | None = None
         self._previous_search: dict[str, Any] | None = None
@@ -121,6 +123,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         self._pages_by_uri[catalog_file.src_uri] = catalog
         virtual.insert(0, catalog_file)
         source_files.insert(0, (catalog, catalog_file))
+        self._pager_neighbours = _grammar_pager_neighbours(source_files)
 
         navigation_fingerprint = _navigation_fingerprint(source_files)
         presentation_fingerprint = _presentation_fingerprint(
@@ -196,9 +199,18 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             f'data-page-hash="{source.content_hash}" '
             f'data-generation="{self._generation_version}"></div>'
         )
+        neighbours = self._pager_neighbours.get(page.file.src_uri)
+        pager = ""
+        if neighbours is not None:
+            previous, nxt = neighbours
+            pager = _render_card_pager(
+                None if previous is None else (_pager_href(previous[0], page.file.url), previous[1]),
+                None if nxt is None else (_pager_href(nxt[0], page.file.url), nxt[1]),
+            )
         return (
             f"# {safe_title}\n\n{page_state}\n\n"
             f"{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
+            + (f"\n\n{pager}" if pager else "")
         )
 
     def on_page_content(self, html: str, page, **kwargs: Any) -> str:
@@ -464,6 +476,41 @@ def _render_card_pager(
     if not links:
         return ""
     return '<nav class="jlpt-card-pager" aria-label="语法卡翻阅">' + "".join(links) + "</nav>"
+
+
+def _pager_href(target_url: str, page_url: str) -> str:
+    """Turn a site-root-relative URL into a href relative to the current page."""
+    base = page_url if page_url.endswith("/") else posixpath.dirname(page_url)
+    relative = posixpath.relpath(target_url, base or ".").replace("\\", "/")
+    if target_url.endswith("/") and not relative.endswith("/"):
+        # Directory URLs keep their trailing slash so served pages resolve without redirects.
+        relative += "/"
+    return relative
+
+
+def _grammar_pager_neighbours(
+    source_files: list[tuple[SourcePage, File]],
+) -> dict[str, tuple[tuple[str, str] | None, tuple[str, str] | None]]:
+    """Map each grammar page to its same-level previous/next card targets."""
+    groups: dict[str, list[tuple[SourcePage, File]]] = {}
+    for source, file in source_files:
+        level = source.metadata.level
+        if source.metadata.content_type != "grammar" or not level:
+            continue
+        groups.setdefault(level, []).append((source, file))
+    neighbours: dict[str, tuple[tuple[str, str] | None, tuple[str, str] | None]] = {}
+    for entries in groups.values():
+        entries.sort(key=lambda entry: _source_navigation_key(entry[0]))
+        for index, (source, file) in enumerate(entries):
+            previous = entries[index - 1] if index > 0 else None
+            nxt = entries[index + 1] if index + 1 < len(entries) else None
+            if previous is None and nxt is None:
+                continue
+            neighbours[file.src_uri] = (
+                None if previous is None else (previous[1].url, previous[0].metadata.display_title),
+                None if nxt is None else (nxt[1].url, nxt[0].metadata.display_title),
+            )
+    return neighbours
 
 
 _ALLOWED_TAGS = frozenset(

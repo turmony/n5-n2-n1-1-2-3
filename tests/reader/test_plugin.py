@@ -131,6 +131,34 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
     return docs, config_file, base / "site"
 
 
+def _grammar_card(docs: Path, name: str, level: str | None, title: str) -> None:
+    level_field = f'"level":"{level}",' if level else ""
+    (docs / f"{name}.md").write_text(
+        f'---\n{{"id":"{name}",{level_field}"kind":"grammar","title":"{title}"}}\n---\n\n# {title}\n\n正文。\n',
+        encoding="utf-8",
+    )
+
+
+def _pager_section(html: str) -> str:
+    match = re.search(r'<nav class="jlpt-card-pager".*?</nav>', html, flags=re.DOTALL)
+    return match.group(0) if match else ""
+
+
+def _page_url_of(site: Path, page: Path) -> str:
+    relative = page.relative_to(site).as_posix()
+    return relative.removesuffix("index.html")
+
+
+def _card_page(site: Path, title: str) -> Path:
+    """Locate a card's own page: its own H1 carries the title while目录页、侧边栏与邻居翻卡栏都不含正文标记。"""
+    return next(
+        p
+        for p in site.rglob("*.html")
+        if re.search(rf"<h1[^>]*>[^<]*{re.escape(title)}", p.read_text(encoding="utf-8"))
+        and "正文。" in p.read_text(encoding="utf-8")
+    )
+
+
 class ReaderPluginTests(unittest.TestCase):
     def test_cached_generation_refresh_changes_only_generation_markers(self) -> None:
         with TemporaryDirectory() as directory:
@@ -515,6 +543,77 @@ class ReaderPluginTests(unittest.TestCase):
         self.assertNotIn("jlpt-card-pager__link--prev", one_sided)
         self.assertIn("jlpt-card-pager__link--next", one_sided)
         self.assertEqual(_render_card_pager(None, None), "")
+
+    def test_card_pager_links_middle_card_to_same_level_neighbours(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N4-G-0001", "N4", "第一张")
+            _grammar_card(docs, "N4-G-0002", "N4", "第二张")
+            _grammar_card(docs, "N4-G-0003", "N4", "第三张")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            page = _card_page(site, "第二张")
+            html = page.read_text(encoding="utf-8")
+            pager = _pager_section(html)
+            self.assertIn("jlpt-card-pager__link--prev", pager)
+            self.assertIn("jlpt-card-pager__link--next", pager)
+            self.assertIn("N4-G-0001｜第一张", pager)
+            self.assertIn("N4-G-0003｜第三张", pager)
+            hrefs = _HrefParser()
+            hrefs.feed(pager)
+            resolved = {urljoin(_page_url_of(site, page), href) for href in hrefs.hrefs}
+            self.assertIn("N4-G-0001.md.__reader_markdown__/", " ".join(resolved))
+            self.assertIn("N4-G-0003.md.__reader_markdown__/", " ".join(resolved))
+
+    def test_card_pager_hides_out_of_range_sides(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N4-G-0001", "N4", "第一张")
+            _grammar_card(docs, "N4-G-0002", "N4", "第二张")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            first = _card_page(site, "第一张")
+            last = _card_page(site, "第二张")
+            self.assertNotIn("jlpt-card-pager__link--prev", _pager_section(first.read_text(encoding="utf-8")))
+            self.assertIn("jlpt-card-pager__link--next", _pager_section(first.read_text(encoding="utf-8")))
+            self.assertIn("jlpt-card-pager__link--prev", _pager_section(last.read_text(encoding="utf-8")))
+            self.assertNotIn("jlpt-card-pager__link--next", _pager_section(last.read_text(encoding="utf-8")))
+
+    def test_card_pager_never_crosses_levels_and_skips_levelless_cards(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N5-G-0001", "N5", "五之一")
+            _grammar_card(docs, "N5-G-0002", "N5", "五之二")
+            _grammar_card(docs, "N4-G-0001", "N4", "四之一")
+            # 文件名不含 n[1-5] 记号且无 level 字段 → 无等级卡，不参与序列
+            (docs / "broken-card.md").write_text(
+                '---\n{"kind":"grammar","title":"无等级"}\n---\n\n# 无等级\n\n正文。\n',
+                encoding="utf-8",
+            )
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            n5_last = _card_page(site, "五之二")
+            pager = _pager_section(n5_last.read_text(encoding="utf-8"))
+            self.assertNotIn("jlpt-card-pager__link--next", pager)
+            hrefs = _HrefParser()
+            hrefs.feed(pager)
+            resolved = " ".join(urljoin(_page_url_of(site, n5_last), href) for href in hrefs.hrefs)
+            self.assertNotIn("N4-G-0001", resolved)
+            levelless = _card_page(site, "无等级")
+            self.assertEqual("", _pager_section(levelless.read_text(encoding="utf-8")))
+
+    def test_card_pager_skips_single_card_sequence(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N3-G-0042", "N3", "孤卡")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            page = _card_page(site, "孤卡")
+            self.assertEqual("", _pager_section(page.read_text(encoding="utf-8")))
 
 
 if __name__ == "__main__":
