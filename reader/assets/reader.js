@@ -24,6 +24,57 @@
     return levelMatches && typeMatches && tagMatches;
   }
 
+  function normalizeSearchText(value) {
+    return String(value == null ? "" : value)
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .replace(/[\s\u200b-\u200d\ufeff]+/gu, "");
+  }
+
+  function normalizeSearchRoute(value) {
+    if (typeof value !== "string" || !value) return "";
+    let parsed;
+    try {
+      parsed = new URL(value, "https://reader.invalid/");
+    } catch (_error) {
+      return "";
+    }
+    if (parsed.origin !== "https://reader.invalid") return "";
+    let pathname;
+    try {
+      pathname = decodeURIComponent(parsed.pathname);
+    } catch (_error) {
+      return "";
+    }
+    pathname = pathname.normalize("NFC").replace(/\/index\.html$/iu, "/");
+    return pathname.startsWith("/") ? pathname : "";
+  }
+
+  function buildSearchCorpus(documents) {
+    const corpus = Object.create(null);
+    (Array.isArray(documents) ? documents : []).forEach(function (document) {
+      if (!document || typeof document !== "object") return;
+      const route = normalizeSearchRoute(document.location);
+      if (!route) return;
+      const tags = Array.isArray(document.tags) ? document.tags.join(" ") : document.tags || "";
+      const text = normalizeSearchText([document.title || "", document.text || "", tags].join(" "));
+      corpus[route] = corpus[route] ? `${corpus[route]}\u0000${text}` : text;
+    });
+    return corpus;
+  }
+
+  function catalogEntryMatchesSearch(entry, filters, query, corpus) {
+    if (!catalogEntryMatches(entry, filters || {})) return false;
+    const needle = normalizeSearchText(query);
+    if (!needle) return true;
+    const routeText = (corpus || {})[normalizeSearchRoute(entry.route)] || "";
+    const localText = normalizeSearchText([
+      entry.title || "",
+      Array.isArray(entry.tags) ? entry.tags.join(" ") : ""
+    ].join(" "));
+    return routeText.includes(needle) || localText.includes(needle);
+  }
+
   function decideReaderUpdate(displayedHash, pageKey, currentVersion, nextManifest, stickyState) {
     const nextHash = nextManifest.pages[pageKey];
     if (displayedHash && nextHash === undefined) return "deleted";
@@ -57,6 +108,11 @@
 
   const core = {
     catalogEntryMatches: catalogEntryMatches,
+    normalizeSearchText: normalizeSearchText,
+    normalizeSearchRoute: normalizeSearchRoute,
+    buildSearchCorpus: buildSearchCorpus,
+    catalogEntryMatchesSearch: catalogEntryMatchesSearch,
+    catalogEntryFromNode: catalogEntryFromNode,
     decideReaderUpdate: decideReaderUpdate,
     installPageLifecycle: installPageLifecycle,
     captureScrollSnapshot: captureScrollSnapshot,
@@ -115,15 +171,30 @@
     if (value !== null) requestAnimationFrame(function () { window.scrollTo(0, Number(value)); });
   }
 
-  function applyCatalogFilters(level, type, tag) {
-    document.querySelectorAll(".jlpt-catalog-entry").forEach(function (entry) {
-      const entryData = {
-        level: entry.dataset.level || "",
-        type: entry.dataset.type || "",
-        tags: (entry.dataset.tags || "").split(/\s+/).filter(Boolean)
-      };
-      entry.hidden = !catalogEntryMatches(entryData, { level: level, type: type, tag: tag });
+  function catalogEntryFromNode(entry) {
+    const link = entry.querySelector("a[href]");
+    return {
+      level: entry.dataset.level || "",
+      type: entry.dataset.type || "",
+      tags: (entry.dataset.tags || "").split(/\s+/).filter(Boolean),
+      title: link ? link.textContent || "" : "",
+      route: link ? link.getAttribute("href") || "" : ""
+    };
+  }
+
+  function applyCatalogFilters(entries, level, type, tag, query, corpus) {
+    let visible = 0;
+    entries.forEach(function (entry) {
+      const matches = catalogEntryMatchesSearch(
+        catalogEntryFromNode(entry),
+        { level: level, type: type, tag: tag },
+        query,
+        corpus
+      );
+      entry.hidden = !matches;
+      if (matches) visible += 1;
     });
+    return visible;
   }
 
   function showUpdateToast(message, action, actionText) {
@@ -245,7 +316,22 @@
       let level = "";
       let type = "";
       let tag = "";
+      let query = "";
+      let corpus = Object.create(null);
+      let searchReady = false;
+      let searchTimer;
       const entries = Array.from(document.querySelectorAll(".jlpt-catalog-entry"));
+      const searchControl = document.querySelector("[data-jlpt-fulltext]");
+      const searchInput = searchControl ? searchControl.querySelector("#jlpt-fulltext-query") : null;
+      const searchStatus = searchControl ? searchControl.querySelector("#jlpt-fulltext-status") : null;
+      function renderCatalog() {
+        const visible = applyCatalogFilters(entries, level, type, tag, query, corpus);
+        if (searchStatus && searchReady) {
+          searchStatus.textContent = query
+            ? (visible ? `找到 ${visible} 项匹配资料。` : "未找到匹配资料。")
+            : `全文索引已载入；当前显示 ${visible} 项资料。`;
+        }
+      }
       const levels = Array.from(new Set(entries.map(function (node) { return node.dataset.level; }).filter(Boolean))).sort();
       const hasUnmarkedLevel = entries.some(function (node) { return !node.dataset.level; });
       const types = Array.from(new Set(entries.map(function (node) { return node.dataset.type; }).filter(Boolean))).sort();
@@ -259,22 +345,51 @@
           .concat(levels.map(function (value) { return [value, value]; }))
           .concat(hasUnmarkedLevel ? [[UNMARKED_LEVEL, "未标记"]] : []),
         "",
-        function (value) { level = value; applyCatalogFilters(level, type, tag); }
+        function (value) { level = value; renderCatalog(); }
       );
       addSelect(
         controls,
         "类型",
         [["", "全部"]].concat(types.map(function (value) { return [value, TYPE_LABELS[value] || value]; })),
         "",
-        function (value) { type = value; applyCatalogFilters(level, type, tag); }
+        function (value) { type = value; renderCatalog(); }
       );
       addSelect(
         controls,
         "标签",
         [["", "全部"]].concat(tags.map(function (value) { return [value, value]; })),
         "",
-        function (value) { tag = value; applyCatalogFilters(level, type, tag); }
+        function (value) { tag = value; renderCatalog(); }
       );
+      if (searchControl && searchInput && searchStatus) {
+        searchControl.addEventListener("submit", function (event) { event.preventDefault(); });
+        searchInput.addEventListener("input", function () {
+          window.clearTimeout(searchTimer);
+          searchTimer = window.setTimeout(function () {
+            query = searchInput.value;
+            renderCatalog();
+          }, 180);
+        });
+        fetch(new URL("/search/search_index.json", window.location.origin), { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then(function (index) {
+            if (!searchControl.isConnected || jlptPageState.pageKey !== "./") return;
+            if (!index || !Array.isArray(index.docs)) throw new Error("invalid search index");
+            corpus = buildSearchCorpus(index.docs);
+            searchReady = true;
+            searchInput.disabled = false;
+            searchStatus.textContent = `全文索引已载入；当前显示 ${entries.length} 项资料。`;
+            renderCatalog();
+          })
+          .catch(function () {
+            if (!searchControl.isConnected || jlptPageState.pageKey !== "./") return;
+            searchInput.disabled = true;
+            searchStatus.textContent = "全文索引载入失败；等级、类型和标签筛选仍可使用。";
+          });
+      }
     }
     const content = document.querySelector(".md-content__inner");
     if (content) content.prepend(controls);

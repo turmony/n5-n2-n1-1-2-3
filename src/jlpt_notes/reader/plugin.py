@@ -128,7 +128,15 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
 
     def on_page_content(self, html: str, page, **kwargs: Any) -> str:
         """Keep generated page HTML readable while removing unsafe source HTML."""
-        return _sanitize_html(_demote_raw_html_h1_after_title(html))
+        cleaned = _sanitize_html(_demote_raw_html_h1_after_title(html))
+        source = self._pages_by_uri.get(page.file.src_uri)
+        if source is not None and source.metadata.content_type == "catalog":
+            cleaned = cleaned.replace(
+                '<ul class="jlpt-catalog"',
+                f"{_FULLTEXT_SEARCH_CONTROL}\n<ul class=\"jlpt-catalog\"",
+                1,
+            )
+        return cleaned
 
     def on_page_context(self, context, page, config, nav, **kwargs: Any):
         source = self._pages_by_uri.get(page.file.src_uri)
@@ -366,6 +374,13 @@ _ALLOWED_TAGS = frozenset(
         "ul",
     }
 )
+
+
+_FULLTEXT_SEARCH_CONTROL = """<form class="jlpt-fulltext-search" data-jlpt-fulltext="" role="search">
+<label for="jlpt-fulltext-query">全文搜索</label>
+<input id="jlpt-fulltext-query" type="search" inputmode="search" autocomplete="off" spellcheck="false" placeholder="连续输入日文、中文、编号或标签" aria-describedby="jlpt-fulltext-status" disabled>
+<p id="jlpt-fulltext-status" class="jlpt-fulltext-status" role="status" aria-live="polite">正在载入本地全文索引……</p>
+</form>"""
 
 
 def _allowed_attribute(tag: str, name: str, value: str) -> bool:

@@ -16,6 +16,103 @@ test("catalog filters combine level, type, and exact tags", () => {
   );
 });
 
+test("local full-text search matches contiguous Japanese and Chinese substrings", () => {
+  const corpus = core.buildSearchCorpus([
+    { location: "library/grammar/N2-G-0010/#核心", title: "～までに", text: "表示截止时限" }
+  ]);
+  const entry = {
+    route: "/library/grammar/N2-G-0010/",
+    title: "N2-G-0010｜～までに",
+    level: "N2",
+    type: "grammar",
+    tags: ["时间"]
+  };
+  const filters = { level: "", type: "", tag: "" };
+
+  assert.equal(core.catalogEntryMatchesSearch(entry, filters, "までに", corpus), true);
+  assert.equal(core.catalogEntryMatchesSearch(entry, filters, "截止时限", corpus), true);
+  assert.equal(core.catalogEntryMatchesSearch(entry, filters, "不存在", corpus), false);
+});
+
+test("local full-text search includes catalog tags and normalizes whitespace", () => {
+  const entry = {
+    route: "/library/grammar/N2-G-0010/",
+    title: "N2-G-0010｜～までに",
+    level: "N2",
+    type: "grammar",
+    tags: ["时间", "截止 时限"]
+  };
+  assert.equal(core.catalogEntryMatchesSearch(entry, {}, "时间", {}), true);
+  assert.equal(core.catalogEntryMatchesSearch(entry, {}, "截止时限", {}), true);
+  assert.equal(core.catalogEntryMatchesSearch(entry, {}, "　 ", {}), true);
+});
+
+test("search route normalization joins section hashes and percent-encoded routes", () => {
+  assert.equal(
+    core.normalizeSearchRoute("library/%E8%AF%AD%E6%B3%95/card/#section"),
+    "/library/语法/card/"
+  );
+  assert.equal(core.normalizeSearchRoute("/library/card/index.html?x=1#part"), "/library/card/");
+  assert.equal(core.normalizeSearchRoute("https://attacker.example/card/"), "");
+  const corpus = core.buildSearchCorpus([
+    { location: "library/card/#one", title: "一", text: "までに" },
+    { location: "/library/card/#two", title: "二", text: "截止时限" }
+  ]);
+  assert.match(corpus["/library/card/"], /までに/);
+  assert.match(corpus["/library/card/"], /截止时限/);
+});
+
+test("catalog DOM mapping keeps the local relative route instead of browser-expanded origin", () => {
+  const link = {
+    textContent: "N2-G-0010｜～までに",
+    href: "http://192.168.1.42:8765/library/card/",
+    getAttribute: (name) => name === "href" ? "library/card/" : null
+  };
+  const entry = core.catalogEntryFromNode({
+    dataset: { level: "N2", type: "grammar", tags: "时间" },
+    querySelector: () => link
+  });
+  assert.equal(entry.route, "library/card/");
+  assert.equal(
+    core.catalogEntryMatchesSearch(
+      entry,
+      { level: "N2", type: "grammar", tag: "时间" },
+      "までに",
+      core.buildSearchCorpus([{ location: "library/card/#core", text: "までに" }])
+    ),
+    true
+  );
+});
+
+test("full-text results combine with level type and exact tag filters", () => {
+  const corpus = core.buildSearchCorpus([
+    { location: "/library/card/", title: "～までに", text: "截止时限" }
+  ]);
+  const entry = {
+    route: "/library/card/",
+    title: "N2-G-0010｜～までに",
+    level: "N2",
+    type: "grammar",
+    tags: ["时间"]
+  };
+  assert.equal(
+    core.catalogEntryMatchesSearch(entry, { level: "N2", type: "grammar", tag: "时间" }, "截止时限", corpus),
+    true
+  );
+  assert.equal(
+    core.catalogEntryMatchesSearch(entry, { level: "N3", type: "grammar", tag: "时间" }, "截止时限", corpus),
+    false
+  );
+  assert.equal(
+    core.catalogEntryMatchesSearch(entry, { level: "N2", type: "draft", tag: "时间" }, "截止时限", corpus),
+    false
+  );
+  assert.equal(
+    core.catalogEntryMatchesSearch(entry, { level: "N2", type: "grammar", tag: "其他" }, "截止时限", corpus),
+    false
+  );
+});
+
 test("displayed page hash catches a site switch before the first manifest request", () => {
   const next = { version: "v2", pages: { "library/card/": "hash-v2" } };
   assert.equal(core.decideReaderUpdate("hash-v1", "library/card/", "", next, ""), "stale");

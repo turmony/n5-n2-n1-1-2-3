@@ -208,6 +208,18 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertNotIn("fonts.googleapis.com", reader_css + reader_js)
             self.assertNotRegex(reader_js, r"fetch\(\s*['\"]https?://")
 
+            catalog_html = (site / "index.html").read_text(encoding="utf-8")
+            self.assertIn('data-jlpt-fulltext=""', catalog_html)
+            self.assertIn('for="jlpt-fulltext-query"', catalog_html)
+            self.assertIn('id="jlpt-fulltext-query"', catalog_html)
+            self.assertIn('type="search"', catalog_html)
+            self.assertIn('aria-describedby="jlpt-fulltext-status"', catalog_html)
+            self.assertIn('aria-live="polite"', catalog_html)
+            self.assertRegex(catalog_html, r'id="jlpt-fulltext-query"[^>]+disabled')
+            self.assertIn('id="jlpt-fulltext-status"', catalog_html)
+            self.assertIn('role="status"', catalog_html)
+            self.assertTrue((site / "search/search_index.json").is_file())
+
     def test_build_uses_display_title_and_does_not_copy_raw_sources(self) -> None:
         with TemporaryDirectory() as directory:
             base = Path(directory)

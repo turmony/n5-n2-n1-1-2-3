@@ -69,6 +69,43 @@
   font: inherit;
 }
 
+.jlpt-fulltext-search {
+  display: grid;
+  grid-template-columns: max-content minmax(12rem, 32rem);
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.jlpt-fulltext-search label {
+  color: var(--md-default-fg-color--light);
+  font-weight: 600;
+}
+
+.jlpt-fulltext-search input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font: inherit;
+}
+
+.jlpt-fulltext-search input:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.jlpt-fulltext-status {
+  grid-column: 2;
+  min-height: 1.5em;
+  margin: 0 !important;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.82em;
+}
+
 .jlpt-reader-controls select {
   max-width: 11rem;
   border: 1px solid var(--md-default-fg-color--lightest);
@@ -139,6 +176,7 @@
 }
 
 .jlpt-update-toast:focus-visible,
+.jlpt-fulltext-search input:focus-visible,
 .jlpt-reader-controls select:focus-visible,
 .jlpt-reader-controls a:focus-visible {
   outline: 3px solid var(--md-accent-fg-color);
@@ -168,6 +206,14 @@ html[data-jlpt-font="large"] {
 }
 
 @media (orientation: portrait) and (max-width: 59.984375em) {
+  .jlpt-fulltext-search {
+    grid-template-columns: 1fr;
+  }
+
+  .jlpt-fulltext-status {
+    grid-column: 1;
+  }
+
   .jlpt-reader-controls label {
     flex: 1 1 9rem;
   }
