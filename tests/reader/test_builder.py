@@ -71,6 +71,30 @@ class ReaderBuilderTests(unittest.TestCase):
             self.assertIsNone(store.resolve("../outside.txt"))
             self.assertIsNone(store.resolve("missing.html"))
 
+    def test_site_store_keeps_a_leased_generation_readable_until_released(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            first, second, third = (root / name for name in ("site-1", "site-2", "site-3"))
+            for site in (first, second, third):
+                site.mkdir()
+                (site / "index.html").write_text(site.name, encoding="utf-8")
+            store = SiteStore(root)
+            store.activate(first)
+
+            with store.lease("index.html") as leased:
+                self.assertEqual(leased, (first / "index.html").resolve())
+                store.activate(second)
+                store.activate(third)
+
+                self.assertTrue(first.exists())
+                assert leased is not None
+                self.assertEqual(leased.read_text(encoding="utf-8"), "site-1")
+
+            self.assertFalse(first.exists())
+            self.assertTrue(second.exists())
+            self.assertTrue(third.exists())
+            self.assertEqual(store.current, third.resolve())
+
 
 if __name__ == "__main__":
     unittest.main()

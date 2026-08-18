@@ -1,10 +1,12 @@
 """Build and publish disposable, read-only reader site generations."""
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import shutil
 from threading import RLock
+from typing import Iterator
 
 from mkdocs.commands.build import build
 from mkdocs.config import load_config
@@ -78,12 +80,21 @@ class SiteStore:
         self._session_root = session_root.resolve(strict=False)
         self._current: Path | None = None
         self._previous: Path | None = None
+        self._retired: set[Path] = set()
+        self._leases: dict[Path, int] = {}
+        self._cleanup_errors: dict[Path, str] = {}
         self._lock = RLock()
 
     @property
     def current(self) -> Path | None:
         with self._lock:
             return self._current
+
+    @property
+    def cleanup_errors(self) -> tuple[str, ...]:
+        """Return retained cleanup failures for launcher diagnostics."""
+        with self._lock:
+            return tuple(self._cleanup_errors[path] for path in sorted(self._cleanup_errors))
 
     def activate(self, site_dir: Path) -> None:
         """Atomically publish a complete new generation.
@@ -102,25 +113,80 @@ class SiteStore:
             obsolete = self._previous
             self._previous = self._current
             self._current = candidate
+            self._retired.discard(candidate)
+            self._cleanup_errors.pop(candidate, None)
             if obsolete is not None and obsolete != candidate:
-                shutil.rmtree(obsolete, ignore_errors=True)
+                self._retired.add(obsolete)
+            self._collect_retired_locked()
 
     def resolve(self, request_path: str) -> Path | None:
-        """Return an existing regular active-site file for a relative request."""
+        """Return an active-site file for inspection outside a streaming response.
+
+        HTTP callers must use :meth:`lease` so a later build cannot remove the
+        file between path resolution and response transmission.
+        """
         with self._lock:
-            current = self._current
-            if current is None:
-                return None
-            requested = Path(request_path)
-            if requested.is_absolute():
-                return None
-            candidate = (current / requested).resolve(strict=False)
-            if not _is_below(candidate, current) or not candidate.is_file():
-                return None
-            return candidate
+            return self._resolve_current_locked(request_path)
+
+    @contextmanager
+    def lease(self, request_path: str) -> Iterator[Path | None]:
+        """Lease a resolved active-site file until the response is finished.
+
+        A path outside the active site, or one that does not exist, yields
+        ``None``.  A valid path keeps its generation from being cleaned up
+        until the context exits.
+        """
+        with self._lock:
+            generation = self._current
+            candidate = self._resolve_current_locked(request_path)
+            if generation is None or candidate is None:
+                generation = None
+            else:
+                self._leases[generation] = self._leases.get(generation, 0) + 1
+        try:
+            yield candidate
+        finally:
+            if generation is not None:
+                with self._lock:
+                    remaining = self._leases[generation] - 1
+                    if remaining:
+                        self._leases[generation] = remaining
+                    else:
+                        del self._leases[generation]
+                    self._collect_retired_locked()
 
     def close(self) -> None:
-        """Release published paths; the owning temporary session removes files."""
+        """Retire published paths while honouring in-flight response leases."""
         with self._lock:
+            self._retired.update(path for path in (self._current, self._previous) if path is not None)
             self._current = None
             self._previous = None
+            self._collect_retired_locked()
+
+    def _resolve_current_locked(self, request_path: str) -> Path | None:
+        current = self._current
+        if current is None:
+            return None
+        requested = Path(request_path)
+        if requested.is_absolute():
+            return None
+        candidate = (current / requested).resolve(strict=False)
+        if not _is_below(candidate, current) or not candidate.is_file():
+            return None
+        return candidate
+
+    def _collect_retired_locked(self) -> None:
+        """Bound retained generations, except ones a response still leases."""
+        for path in sorted(tuple(self._retired)):
+            if self._leases.get(path, 0):
+                continue
+            try:
+                shutil.rmtree(path)
+            except OSError as error:
+                self._cleanup_errors[path] = f"{type(error).__name__}: {error}"
+                continue
+            if path.exists():
+                self._cleanup_errors[path] = "CleanupError: retired generation still exists"
+                continue
+            self._retired.remove(path)
+            self._cleanup_errors.pop(path, None)
