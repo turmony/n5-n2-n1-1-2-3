@@ -3,13 +3,58 @@
 from __future__ import annotations
 
 from pathlib import Path
+from queue import Empty, SimpleQueue
 import sys
-from threading import Thread
+from threading import Event, Thread
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import Callable
 import webbrowser
 
 from .controller import ReaderController, ReaderStatus
+
+
+class _StatusPump:
+    """Carry worker statuses to Tk without making any worker-side Tk call."""
+
+    def __init__(
+        self,
+        window,
+        apply_status: Callable[[ReaderStatus], None],
+        *,
+        interval_ms: int = 50,
+    ) -> None:
+        self._window = window
+        self._apply_status = apply_status
+        self._interval_ms = interval_ms
+        self._queue: SimpleQueue[ReaderStatus] = SimpleQueue()
+        self._closed = Event()
+
+    def start(self) -> None:
+        """Schedule the first drain; callers must invoke this on the UI thread."""
+        if not self._closed.is_set():
+            self._window.after(0, self._drain)
+
+    def post(self, status: ReaderStatus) -> None:
+        """Enqueue from any worker without waiting for or calling Tk."""
+        if not self._closed.is_set():
+            self._queue.put(status)
+
+    def close(self) -> None:
+        """Make queued and future updates harmless before the window is destroyed."""
+        self._closed.set()
+
+    def _drain(self) -> None:
+        if self._closed.is_set():
+            return
+        while not self._closed.is_set():
+            try:
+                status = self._queue.get_nowait()
+            except Empty:
+                break
+            self._apply_status(status)
+        if not self._closed.is_set():
+            self._window.after(self._interval_ms, self._drain)
 
 
 def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> int:
@@ -68,18 +113,14 @@ def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> 
         copy_button.configure(state=enabled)
         open_button.configure(state=enabled)
 
-    def post_status(status: ReaderStatus) -> None:
-        try:
-            window.after(0, apply_status, status)
-        except tk.TclError:
-            pass
+    status_pump = _StatusPump(window, apply_status)
 
     controller = ReaderController(
         root,
         config_path,
         serving_program,
         port=port,
-        on_status=post_status,
+        on_status=status_pump.post,
     )
 
     def configure_firewall_worker() -> None:
@@ -102,6 +143,7 @@ def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> 
             return
         closing = True
         stop_button.configure(state="disabled")
+        status_pump.close()
         controller.stop()
         window.destroy()
 
@@ -116,16 +158,18 @@ def run(root: Path, config_path: Path, program_path: Path, port: int = 8765) -> 
     copy_button.configure(state="disabled")
     open_button.configure(state="disabled")
     window.protocol("WM_DELETE_WINDOW", close_window)
+    status_pump.start()
 
     def start_worker() -> None:
         try:
             controller.start()
         except Exception as error:
-            post_status(ReaderStatus("error", f"启动失败：{error}"))
+            status_pump.post(ReaderStatus("error", f"启动失败：{error}"))
 
     Thread(target=start_worker, name="jlpt-reader-start", daemon=True).start()
     try:
         window.mainloop()
     finally:
+        status_pump.close()
         controller.stop()
     return 0

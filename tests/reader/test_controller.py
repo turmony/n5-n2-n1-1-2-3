@@ -4,12 +4,12 @@ from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-from threading import Event, Thread
+from threading import Event, Lock, Thread, current_thread
 import unittest
 from unittest.mock import patch
 
 from jlpt_notes.reader.builder import BuildResult
-from jlpt_notes.reader.controller import ReaderController
+from jlpt_notes.reader.controller import ReaderController, ReaderStatus
 from jlpt_notes.reader.network import LanAddress, NetworkInspectionError
 
 
@@ -473,6 +473,95 @@ class ReaderControllerTests(unittest.TestCase):
                 run(Path("notes"), Path("reader/mkdocs.yml"), program)
 
             create_window.assert_not_called()
+
+    def test_launcher_status_pump_never_calls_tk_from_worker_and_closes_safely(self) -> None:
+        from jlpt_notes.reader.launcher import _StatusPump
+
+        class FakeWindow:
+            def __init__(self) -> None:
+                self.ui_thread = current_thread()
+                self.after_calls = []
+                self.cross_thread_after = Event()
+
+            def after(self, delay, callback):
+                if current_thread() is not self.ui_thread:
+                    self.cross_thread_after.set()
+                self.after_calls.append((delay, callback))
+
+        window = FakeWindow()
+        applied = []
+        pump = _StatusPump(window, applied.append, interval_ms=25)
+        pump.start()
+        self.assertEqual(len(window.after_calls), 1)
+
+        controller_lock = Lock()
+        worker_holds_lock = Event()
+        statuses_posted = Event()
+        release_worker = Event()
+        first = ReaderStatus("building", "building")
+        second = ReaderStatus("running", "running", "http://192.168.1.42:8765")
+
+        def worker_publish() -> None:
+            with controller_lock:
+                worker_holds_lock.set()
+                pump.post(first)
+                pump.post(second)
+                statuses_posted.set()
+                release_worker.wait(2)
+
+        worker = Thread(target=worker_publish)
+        worker.start()
+        self.assertTrue(worker_holds_lock.wait(1))
+        self.assertTrue(statuses_posted.wait(1))
+        self.assertFalse(window.cross_thread_after.is_set())
+
+        pump.close()
+        release_worker.set()
+        self.assertTrue(controller_lock.acquire(timeout=1))
+        controller_lock.release()
+        worker.join(1)
+        self.assertFalse(worker.is_alive())
+
+        # A callback already queued by the UI loop becomes a harmless no-op.
+        window.after_calls[0][1]()
+        self.assertEqual(applied, [])
+        self.assertEqual(len(window.after_calls), 1)
+        pump.post(ReaderStatus("error", "late"))
+        self.assertEqual(applied, [])
+
+    def test_launcher_status_pump_drains_in_order_and_reschedules_only_on_ui(self) -> None:
+        from jlpt_notes.reader.launcher import _StatusPump
+
+        class FakeWindow:
+            def __init__(self) -> None:
+                self.ui_thread = current_thread()
+                self.after_calls = []
+
+            def after(self, delay, callback):
+                self.assert_ui_thread()
+                self.after_calls.append((delay, callback))
+
+            def assert_ui_thread(self) -> None:
+                if current_thread() is not self.ui_thread:
+                    raise AssertionError("Tk after called outside UI thread")
+
+        window = FakeWindow()
+        applied = []
+        pump = _StatusPump(window, applied.append, interval_ms=25)
+        pump.start()
+        statuses = [
+            ReaderStatus("building", "one"),
+            ReaderStatus("updating", "two"),
+            ReaderStatus("running", "three", "http://192.168.1.42:8765"),
+        ]
+        for status in statuses:
+            pump.post(status)
+
+        window.after_calls.pop(0)[1]()
+
+        self.assertEqual(applied, statuses)
+        self.assertEqual(len(window.after_calls), 1)
+        self.assertEqual(window.after_calls[0][0], 25)
 
     def test_stop_is_idempotent_and_stops_watcher_server_store(self) -> None:
         with self._runtime() as (root, config, program, statuses), \
