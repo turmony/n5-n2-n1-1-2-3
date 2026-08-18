@@ -5,6 +5,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Piped stdout uses the console code page (GBK on zh-CN) unless pinned, which
+# would break the UTF-8 JSON contract of the -WhatIf preview on such systems.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $projectRoot = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot -Parent)).Path
 
 if ([string]::IsNullOrWhiteSpace($Pythonw)) {
