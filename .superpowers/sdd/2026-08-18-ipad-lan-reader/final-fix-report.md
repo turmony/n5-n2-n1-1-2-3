@@ -316,3 +316,64 @@ GREEN implementation:
 
 No blocker or known residual remains within this two-finding scope. Physical
 iPad behavior was not exercised, as required by the task boundary.
+
+## Scoped shutdown repair round 2
+
+Base commit: `29657f056e56cbcbaa3ee129eb87d8a814dfed1d`
+
+This second review repair was limited to quiet, bounded explicit shutdown of
+connections that have not supplied a complete HTTP request. It performed no
+firewall or network inspection/mutation, GUI automation, shortcut action, or
+learner-source edit.
+
+### Root cause and RED evidence
+
+- `BaseHTTPRequestHandler` reads the request line and headers during handler
+  construction. An `OSError` from those reads therefore occurs before the
+  generated-site handler enters `_serve` and its response-I/O exception seam.
+- `ThreadingMixIn.process_request_thread` catches that escaped error and invokes
+  the server's inherited default `handle_error`, which prints a traceback.
+- A real loopback behavioral test opened three simultaneous accepted clients:
+  one sent no bytes, one sent only `GET /`, and one sent a complete request line
+  plus an incomplete header block. It then called explicit server stop while
+  all three workers were blocked in pre-request reads.
+- Before the production edit, the two-test RED run had one expected failure in
+  1.529 s: bounded stop and worker cleanup completed, but the silence assertion
+  captured 5,238 characters of default traceback output. The companion test
+  passed, proving an injected unexpected `OSError` while the server was still
+  running used the real default error-reporting path.
+
+### GREEN implementation
+
+- The threaded server records exactly which currently tracked request sockets
+  were selected by its explicit `abort_active_requests` operation before it
+  interrupts them.
+- Its server-level `handle_error` suppresses only an `OSError` for one of those
+  explicitly aborted sockets. Every other failure delegates to the inherited
+  reporter; the live unexpected-`OSError` regression still observes both the
+  traceback and exception message.
+- Active and aborted tracking entries are removed together when a request
+  worker exits or worker startup fails, so shutdown state does not retain
+  socket objects.
+- The real three-client test is GREEN, enforces stop completion in less than
+  1.0 s without any client closing first, observes an empty active-worker set,
+  captures no stderr, and then removes the site session successfully.
+
+### Round-2 verification
+
+- Focused RED/GREEN pair: 2 passed in 1.527 s after the fix.
+- Focused server/controller suites: 40 passed in 10.100 s.
+- Full Python suite: 137 passed in 24.266 s.
+- Node behavior suite: 14 passed in 94.570 ms.
+- `python -m compileall -q src tests`: passed.
+- Repository validation: passed (`资料库结构有效`).
+- `git diff --check`: passed, with only expected line-ending notices.
+- The shipped-config build and learner-source immutability measurement were not
+  repeated because this round changes only the HTTP shutdown/error-reporting
+  lifecycle. The full Python run includes the committed read-only build and
+  real HTTP end-to-end tests; no build, discovery, metadata, or source code was
+  changed.
+
+No blocker or known residual remains within this single shutdown finding. An
+independent scoped re-review is still required; this report does not claim
+approval.

@@ -1,9 +1,11 @@
 import http.client
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr
+from io import StringIO
 from pathlib import Path
 import socket
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
+from time import monotonic
 import unittest
 from unittest.mock import patch
 
@@ -48,6 +50,20 @@ class _TrackingLeaseStore(SiteStore):
                 yield path
         finally:
             self.lease_exited.set()
+
+
+class _SignalingTextBuffer(StringIO):
+    """Signal when the server's real stderr reporting path is exercised."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.written = Event()
+
+    def write(self, value: str) -> int:
+        written = super().write(value)
+        if value:
+            self.written.set()
+        return written
 
 
 class ReaderServerTests(unittest.TestCase):
@@ -388,6 +404,78 @@ class ReaderServerTests(unittest.TestCase):
         self.assertTrue(tracking_store.lease_exited.wait(timeout=1.0))
         tracking_store.close()
         self.assertFalse(self.site.exists(), "the released generation could not be cleaned")
+
+    def test_stop_quietly_aborts_connections_before_a_complete_request(self) -> None:
+        self.server.stop()
+        self.server = ReadOnlyServer(self.store, "127.0.0.1", 0)
+        accepted = Event()
+        accepted_count = 0
+        real_process_request = self.server._httpd.process_request
+
+        def track_accepted_request(request, address) -> None:
+            nonlocal accepted_count
+            real_process_request(request, address)
+            accepted_count += 1
+            if accepted_count == 3:
+                accepted.set()
+
+        clients: list[socket.socket] = []
+        request_prefixes = (
+            b"",
+            b"GET /",
+            b"GET / HTTP/1.1\r\nHost: 127.0.0.1",
+        )
+        errors = StringIO()
+        try:
+            with patch.object(
+                self.server._httpd,
+                "process_request",
+                side_effect=track_accepted_request,
+            ):
+                self.server.start()
+                for prefix in request_prefixes:
+                    client = socket.create_connection(
+                        ("127.0.0.1", self.server.bound_port), timeout=5
+                    )
+                    clients.append(client)
+                    if prefix:
+                        client.sendall(prefix)
+                self.assertTrue(accepted.wait(timeout=5))
+
+                started = monotonic()
+                with redirect_stderr(errors):
+                    self.server.stop()
+                elapsed = monotonic() - started
+        finally:
+            for client in clients:
+                client.close()
+
+        self.assertLess(elapsed, 1.0, "shutdown waited for an incomplete client request")
+        self.assertEqual(self.server._httpd._active_requests, set())
+        self.assertEqual(errors.getvalue(), "")
+        self.store.close()
+        self.assertFalse(self.site.exists(), "request workers retained the site session")
+
+    def test_unexpected_request_oserror_while_running_is_still_reported(self) -> None:
+        handler_class = self.server._httpd.RequestHandlerClass
+        failure_raised = Event()
+        errors = _SignalingTextBuffer()
+
+        def fail_request(_handler) -> None:
+            failure_raised.set()
+            raise OSError("unexpected live request failure")
+
+        with patch.object(handler_class, "handle_one_request", fail_request):
+            with redirect_stderr(errors):
+                with socket.create_connection(
+                    ("127.0.0.1", self.server.bound_port), timeout=5
+                ):
+                    self.assertTrue(failure_raised.wait(timeout=5))
+                    self.assertTrue(errors.written.wait(timeout=5))
+                self.server.stop()
+
+        self.assertIn("Traceback", errors.getvalue())
+        self.assertIn("unexpected live request failure", errors.getvalue())
 
 
 if __name__ == "__main__":

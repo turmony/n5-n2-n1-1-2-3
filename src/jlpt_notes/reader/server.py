@@ -5,6 +5,7 @@ import mimetypes
 import os
 from pathlib import PurePosixPath
 import socket
+import sys
 from threading import Event, Lock, Thread, current_thread
 from urllib.parse import unquote, urlsplit
 
@@ -88,6 +89,7 @@ class _JoinableRequestServer(ThreadingHTTPServer):
 
     def __init__(self, *args, **kwargs) -> None:
         self._active_requests: set[socket.socket] = set()
+        self._aborted_requests: set[socket.socket] = set()
         self._active_requests_lock = Lock()
         super().__init__(*args, **kwargs)
 
@@ -99,6 +101,7 @@ class _JoinableRequestServer(ThreadingHTTPServer):
         except BaseException:
             with self._active_requests_lock:
                 self._active_requests.discard(request)
+                self._aborted_requests.discard(request)
             raise
 
     def process_request_thread(self, request: socket.socket, client_address) -> None:
@@ -107,11 +110,21 @@ class _JoinableRequestServer(ThreadingHTTPServer):
         finally:
             with self._active_requests_lock:
                 self._active_requests.discard(request)
+                self._aborted_requests.discard(request)
+
+    def handle_error(self, request: socket.socket, client_address) -> None:
+        error = sys.exc_info()[1]
+        with self._active_requests_lock:
+            explicitly_aborted = request in self._aborted_requests
+        if explicitly_aborted and isinstance(error, OSError):
+            return
+        super().handle_error(request, client_address)
 
     def abort_active_requests(self) -> None:
         """Interrupt request I/O so worker joins cannot depend on a client."""
         with self._active_requests_lock:
             requests = tuple(self._active_requests)
+            self._aborted_requests.update(requests)
         for request in requests:
             try:
                 request.shutdown(socket.SHUT_RDWR)
