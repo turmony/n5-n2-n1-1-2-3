@@ -606,6 +606,7 @@ def _navigation_fingerprint(
             source.metadata.display_title,
             source.metadata.source_id or "",
             source.metadata.content_type,
+            source.metadata.level or "",
         )
         for source, file in source_files
     ]

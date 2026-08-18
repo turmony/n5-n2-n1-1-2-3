@@ -1,5 +1,6 @@
 import unittest
 import json
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -7,6 +8,18 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from jlpt_notes.reader.builder import SiteStore, build_site
+
+
+def _pager_section(html: str) -> str:
+    match = re.search(r'<nav class="jlpt-card-pager".*?</nav>', html, flags=re.DOTALL)
+    return match.group(0) if match else ""
+
+
+def _card(name: str, title: str, body: str = "正文。") -> str:
+    return (
+        f'---\n{{"id":"{name}","level":"N4","kind":"grammar","title":"{title}"}}\n---\n\n'
+        f"# {title}\n\n{body}\n"
+    )
 
 
 class ReaderBuilderTests(unittest.TestCase):
@@ -232,6 +245,100 @@ class ReaderBuilderTests(unittest.TestCase):
             self.assertFalse(removed_output.exists())
             search = (second_site / "search/search_index.json").read_text(encoding="utf-8")
             self.assertNotIn("unique removed search text", search)
+
+    def test_incremental_rebuild_after_insert_keeps_pager_equal_to_full_build(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / "notes"
+            source.mkdir()
+            (source / "N4-G-0001.md").write_text(_card("N4-G-0001", "一"), encoding="utf-8")
+            (source / "N4-G-0003.md").write_text(_card("N4-G-0003", "三"), encoding="utf-8")
+            first = build_site(source, project / "reader/mkdocs.yml", base / "site-1")
+            self.assertTrue(first.success, first.error)
+
+            (source / "N4-G-0002.md").write_text(_card("N4-G-0002", "二"), encoding="utf-8")
+            incremental = build_site(
+                source, project / "reader/mkdocs.yml", base / "site-2", previous_site=base / "site-1"
+            )
+            self.assertTrue(incremental.success, incremental.error)
+            full = build_site(source, project / "reader/mkdocs.yml", base / "site-3")
+            self.assertTrue(full.success, full.error)
+
+            for name in ("N4-G-0001", "N4-G-0002", "N4-G-0003"):
+                page = f"library/{name}.md.__reader_markdown__/index.html"
+                incremental_pager = _pager_section((base / "site-2" / page).read_text(encoding="utf-8"))
+                full_pager = _pager_section((base / "site-3" / page).read_text(encoding="utf-8"))
+                self.assertTrue(incremental_pager, f"{name} 缺少翻卡栏")
+                self.assertEqual(incremental_pager, full_pager, name)
+
+    def test_body_edit_incremental_reuse_keeps_neighbour_pager(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / "notes"
+            source.mkdir()
+            (source / "N4-G-0001.md").write_text(_card("N4-G-0001", "一"), encoding="utf-8")
+            (source / "N4-G-0002.md").write_text(_card("N4-G-0002", "二"), encoding="utf-8")
+            first = build_site(source, project / "reader/mkdocs.yml", base / "site-1")
+            self.assertTrue(first.success, first.error)
+
+            (source / "N4-G-0002.md").write_text(_card("N4-G-0002", "二", "改后的正文。"), encoding="utf-8")
+            incremental = build_site(
+                source, project / "reader/mkdocs.yml", base / "site-2", previous_site=base / "site-1"
+            )
+            self.assertTrue(incremental.success, incremental.error)
+            self.assertGreaterEqual(incremental.reused_pages, 1)
+
+            reused = (base / "site-2" / "library/N4-G-0001.md.__reader_markdown__/index.html").read_text(
+                encoding="utf-8"
+            )
+            pager = _pager_section(reused)
+            self.assertIn("N4-G-0002｜二", pager)
+
+    def test_incremental_rebuild_after_level_edit_keeps_pager_equal_to_full_build(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / "notes"
+            source.mkdir()
+            (source / "N4-G-0001.md").write_text(_card("N4-G-0001", "一"), encoding="utf-8")
+            (source / "N4-G-0002.md").write_text(_card("N4-G-0002", "二"), encoding="utf-8")
+            first = build_site(source, project / "reader/mkdocs.yml", base / "site-1")
+            self.assertTrue(first.success, first.error)
+
+            # A level-only metadata edit keeps id/title/path/content_type unchanged
+            # (explicit metadata level overrides the path-derived N4), so only the
+            # navigation fingerprint's level field can invalidate stale reuse.
+            (source / "N4-G-0002.md").write_text(
+                _card("N4-G-0002", "二").replace('"level":"N4"', '"level":"N5"'),
+                encoding="utf-8",
+            )
+            incremental = build_site(
+                source, project / "reader/mkdocs.yml", base / "site-2", previous_site=base / "site-1"
+            )
+            self.assertTrue(incremental.success, incremental.error)
+            self.assertEqual(incremental.reused_pages, 0)
+            full = build_site(source, project / "reader/mkdocs.yml", base / "site-3")
+            self.assertTrue(full.success, full.error)
+
+            for name in ("N4-G-0001", "N4-G-0002"):
+                page = f"library/{name}.md.__reader_markdown__/index.html"
+                incremental_pager = _pager_section((base / "site-2" / page).read_text(encoding="utf-8"))
+                full_pager = _pager_section((base / "site-3" / page).read_text(encoding="utf-8"))
+                self.assertEqual(incremental_pager, full_pager, name)
+            remaining = _pager_section(
+                (base / "site-2" / "library/N4-G-0001.md.__reader_markdown__/index.html").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertNotIn("N4-G-0002", remaining)
+            moved = _pager_section(
+                (base / "site-2" / "library/N4-G-0002.md.__reader_markdown__/index.html").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertFalse(moved, "N5 序列仅剩一张卡，不应有翻卡栏")
 
     def test_site_store_keeps_one_previous_site_until_the_next_activation(self) -> None:
         with TemporaryDirectory() as directory:
