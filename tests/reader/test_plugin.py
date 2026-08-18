@@ -2,6 +2,7 @@ import json
 from hashlib import sha256
 from html.parser import HTMLParser
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -31,6 +32,12 @@ def _site_article_containing(site: Path, text: str) -> str:
         if text in article:
             return article
     raise AssertionError(f"No generated article contains {text!r}")
+
+
+def _primary_navigation(html: str) -> str:
+    return html.split('<div class="md-sidebar md-sidebar--primary"', 1)[1].split(
+        '<div class="md-sidebar md-sidebar--secondary"', 1
+    )[0]
 
 
 def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
@@ -210,8 +217,10 @@ class ReaderPluginTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             docs, config_file, site = _write_reader_config(Path(directory))
             (docs / "forms.md").write_text(
-                "   # 缩进 ATX\n\nSetext\n======\n\n> # 引用标题\n\n"
-                '<h1 class="raw">原始 H1</h1>\n\n```markdown\n# code sample\n```\n\n    # indented code\n',
+                "   # 缩进 ATX\n\nSetext\n======\n\n> # 引用标题\n\n> > # 嵌套引用标题\n\n"
+                "> 引用 Setext\n> =====\n\n"
+                '<h1 class="raw">原始 H1</h1>\n\n```markdown\n# code sample\n```\n\n'
+                "````markdown\n```\n# FENCED_SENTINEL\n```\n````\n\n    # indented code\n",
                 encoding="utf-8",
             )
 
@@ -221,7 +230,28 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertEqual(article.count("<h1"), 1)
             self.assertIn("<h2", article)
             self.assertIn("# code sample", article)
+            self.assertIn("# FENCED_SENTINEL", article)
             self.assertIn("# indented code", article)
+
+    def test_navigation_hoists_root_folders_and_orders_date_bearing_papers_newest_first(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            grammar = docs / "grammar"
+            grammar.mkdir()
+            (grammar / "N5-G-0001.md").write_text("# Grammar sentinel\n", encoding="utf-8")
+            papers = docs / "quizzes/papers"
+            papers.mkdir(parents=True)
+            (papers / "2026-07-26.md").write_text("# PAPER_OLD_SENTINEL\n", encoding="utf-8")
+            (papers / "2026-07-27.md").write_text("# PAPER_NEW_SENTINEL\n", encoding="utf-8")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            html = (site / "index.html").read_text(encoding="utf-8")
+            navigation = _primary_navigation(html)
+            self.assertIn("正式语法卡", navigation)
+            self.assertIn("测试", navigation)
+            self.assertNotRegex(navigation, r'<span class="md-ellipsis">\s*资料库\s*</span>')
+            self.assertLess(navigation.index("PAPER_NEW_SENTINEL"), navigation.index("PAPER_OLD_SENTINEL"))
 
 
 if __name__ == "__main__":

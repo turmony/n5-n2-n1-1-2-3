@@ -85,6 +85,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             source = self._pages_by_uri.get(page.file.src_uri)
             if source is not None:
                 page.title = source.metadata.display_title
+        _hoist_synthetic_library(nav.items)
         _localize_and_sort_navigation(nav.items, self._pages_by_uri)
         return nav
 
@@ -129,21 +130,26 @@ def _demote_headings(markdown: str) -> str:
     """Reserve H1 for the generated display title without rewriting code samples."""
     output: list[str] = []
     lines = markdown.splitlines(keepends=True)
-    in_fence: str | None = None
+    in_fence: tuple[str, int] | None = None
     index = 0
     while index < len(lines):
         line = lines[index]
         fence = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
-        if fence:
-            marker = fence.group(1)
-            if in_fence is None:
-                in_fence = marker[0]
-            elif marker[0] == in_fence:
+        if in_fence is not None:
+            character, length = in_fence
+            if re.match(rf"^\s{{0,3}}{re.escape(character)}{{{length},}}\s*(?:\r?\n)?$", line):
                 in_fence = None
             output.append(line)
             index += 1
             continue
-        if in_fence or re.match(r"^(?: {4}|\t)", line):
+        if fence:
+            marker = fence.group(1)
+            if in_fence is None:
+                in_fence = (marker[0], len(marker))
+            output.append(line)
+            index += 1
+            continue
+        if re.match(r"^(?: {4}|\t)", line):
             output.append(line)
             index += 1
             continue
@@ -154,7 +160,7 @@ def _demote_headings(markdown: str) -> str:
             continue
 
         line = re.sub(
-            r"^(\s{0,3}(?:>\s*)?)(#{1,5})(?=\s)",
+            r"^(\s{0,3}(?:>\s*)*)(#{1,5})(?=\s)",
             lambda match: match.group(1) + "#" + match.group(2),
             line,
         )
@@ -167,18 +173,26 @@ def _demote_headings(markdown: str) -> str:
 def _is_setext_h1(lines: list[str], index: int) -> bool:
     if index + 1 >= len(lines):
         return False
-    current = lines[index]
-    underline = lines[index + 1]
+    prefix, current = _blockquote_prefix_and_content(lines[index])
+    underline_prefix, underline = _blockquote_prefix_and_content(lines[index + 1])
     return bool(
         current.strip()
-        and not re.match(r"^\s{0,3}(?:>|#{1,6}|[-+*]\s|\d+[.)]\s)", current)
+        and prefix == underline_prefix
+        and not re.match(r"^\s{0,3}(?:#{1,6}|[-+*]\s|\d+[.)]\s)", current)
         and re.match(r"^\s{0,3}=+\s*(?:\r?\n)?$", underline)
     )
 
 
 def _setext_to_atx_h2(line: str) -> str:
     newline = "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
-    return "## " + line.rstrip("\r\n").lstrip() + newline
+    prefix, content = _blockquote_prefix_and_content(line.rstrip("\r\n"))
+    return prefix + "## " + content.lstrip() + newline
+
+
+def _blockquote_prefix_and_content(line: str) -> tuple[str, str]:
+    match = re.match(r"^(\s{0,3}(?:>\s*)*)(.*)$", line)
+    assert match is not None
+    return match.group(1), match.group(2)
 
 
 def _virtual_source_path(source: SourcePage) -> Path:
@@ -220,6 +234,18 @@ _FOLDER_LABELS = {
 _FOLDER_ORDER = {name: index for index, name in enumerate(_FOLDER_LABELS)}
 
 
+def _hoist_synthetic_library(items) -> None:
+    """Hide the virtual storage namespace while retaining the source-folder tree."""
+    for index, item in enumerate(items):
+        if str(getattr(item, "title", "")).casefold() != "library":
+            continue
+        children = list(getattr(item, "children", ()))
+        for child in children:
+            child.parent = None
+        items[index : index + 1] = children
+        return
+
+
 def _localize_and_sort_navigation(items, pages_by_uri: dict[str, SourcePage]) -> None:
     """Keep the physical tree while using learner-facing labels and deterministic order."""
     for item in items:
@@ -251,7 +277,8 @@ def _source_navigation_key(source: SourcePage) -> tuple[object, ...]:
     relative = source.relative_path.as_posix()
     if structured:
         return (0, int(structured.group(1)), structured.group(2).casefold(), int(structured.group(3)), relative.casefold(), relative)
-    is_dated = source.metadata.content_type in {"quiz-question", "quiz-result", "review", "history"}
+    top_folder = source.relative_path.parts[0].casefold() if source.relative_path.parts else ""
+    is_dated = top_folder in {"quizzes", "reviews", "history"}
     date = re.search(r"\d{4}-\d{2}-\d{2}", relative)
     if is_dated and date:
         return (1, -int(date.group(0).replace("-", "")), relative.casefold(), relative)
