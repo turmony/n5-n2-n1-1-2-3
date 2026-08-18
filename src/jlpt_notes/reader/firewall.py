@@ -1,8 +1,10 @@
 """Inspect and explicitly configure the reader's Windows Firewall rule."""
 
+import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+import sys
 from typing import Any
 
 
@@ -20,7 +22,7 @@ class FirewallConfigurationError(RuntimeError):
 def firewall_rule_present(port: int, *, runner=None) -> bool:
     """Inspect whether the exact enabled Private/LocalSubnet rule exists."""
     checked_port = _validate_port(port)
-    query = _status_query(checked_port)
+    query = _status_query()
     command = [
         "powershell.exe",
         "-NoProfile",
@@ -41,10 +43,17 @@ def firewall_rule_present(port: int, *, runner=None) -> bool:
         detail = getattr(error, "stderr", None) or str(error)
         raise FirewallInspectionError(f"无法检查 Windows 防火墙规则：{detail}") from error
 
-    value = completed.stdout.strip().casefold()
-    if value not in {"true", "false"}:
-        raise FirewallInspectionError("无法检查 Windows 防火墙规则：PowerShell 返回了未知结果")
-    return value == "true"
+    try:
+        value = json.loads(completed.stdout or "[]")
+        rows = value if isinstance(value, list) else [value]
+        if not all(isinstance(row, dict) for row in rows):
+            raise TypeError("rule result is not an object list")
+    except (json.JSONDecodeError, TypeError) as error:
+        raise FirewallInspectionError(
+            f"无法检查 Windows 防火墙规则：返回数据无效（{error}）"
+        ) from error
+    expected_program = str(Path(sys.executable).resolve())
+    return len(rows) == 1 and _rule_matches(rows[0], checked_port, expected_program)
 
 
 def configure_firewall(
@@ -56,6 +65,7 @@ def configure_firewall(
     """Run the firewall script only after an explicit caller action."""
     checked_port = _validate_port(port)
     resolved_script = Path(script_path).resolve(strict=True)
+    program = Path(sys.executable).resolve()
     if not resolved_script.is_file():
         raise FileNotFoundError(f"找不到防火墙配置脚本：{resolved_script}")
     command = [
@@ -68,6 +78,8 @@ def configure_firewall(
         str(resolved_script),
         "-Port",
         str(checked_port),
+        "-Program",
+        str(program),
     ]
     process_runner: Callable[..., Any] = runner or subprocess.run
     try:
@@ -89,28 +101,42 @@ def _validate_port(port: int) -> int:
     return port
 
 
-def _status_query(port: int) -> str:
+def _rule_matches(rule: dict[str, object], port: int, program: str) -> bool:
+    return (
+        rule.get("DisplayName") == RULE_DISPLAY_NAME
+        and rule.get("Enabled") == "True"
+        and rule.get("Direction") == "Inbound"
+        and rule.get("Action") == "Allow"
+        and rule.get("Profile") == "Private"
+        and rule.get("Protocol") == "TCP"
+        and str(rule.get("LocalPort")) == str(port)
+        and rule.get("RemoteAddress") == ["LocalSubnet"]
+        and str(rule.get("Program", "")).casefold() == program.casefold()
+    )
+
+
+def _status_query() -> str:
     return rf"""
 $name = '{RULE_DISPLAY_NAME}'
-$found = $false
+$rules = @(
 Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue |
-    Where-Object {{
-        $_.Enabled -eq 'True' -and
-        $_.Direction -eq 'Inbound' -and
-        $_.Action -eq 'Allow' -and
-        $_.Profile -eq 'Private'
-    }} |
     ForEach-Object {{
+        $rule = $_
         $portFilter = Get-NetFirewallPortFilter -AssociatedNetFirewallRule $_
         $addressFilter = Get-NetFirewallAddressFilter -AssociatedNetFirewallRule $_
-        if (
-            $portFilter.Protocol -eq 'TCP' -and
-            [string]$portFilter.LocalPort -eq '{port}' -and
-            @($addressFilter.RemoteAddress).Count -eq 1 -and
-            $addressFilter.RemoteAddress -contains 'LocalSubnet'
-        ) {{
-            $found = $true
+        $applicationFilter = Get-NetFirewallApplicationFilter -AssociatedNetFirewallRule $_
+        [pscustomobject]@{{
+            DisplayName = [string]$rule.DisplayName
+            Enabled = $rule.Enabled.ToString()
+            Direction = $rule.Direction.ToString()
+            Action = $rule.Action.ToString()
+            Profile = $rule.Profile.ToString()
+            Protocol = $portFilter.Protocol.ToString()
+            LocalPort = [string]$portFilter.LocalPort
+            RemoteAddress = @($addressFilter.RemoteAddress)
+            Program = [string]$applicationFilter.Program
         }}
     }}
-if ($found) {{ 'True' }} else {{ 'False' }}
+)
+ConvertTo-Json -InputObject $rules -Compress
 """.strip()

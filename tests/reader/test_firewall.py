@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import subprocess
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -14,35 +15,34 @@ from jlpt_notes.reader.firewall import (
 
 class ReaderFirewallTests(unittest.TestCase):
     def test_status_query_accepts_only_the_private_local_subnet_tcp_rule(self) -> None:
+        rule = _firewall_rule()
+
         def matching_query_runner(command, **kwargs):
-            self.assertEqual(command[:3], ["powershell.exe", "-NoProfile", "-NonInteractive"])
-            self.assertEqual(command[3], "-Command")
-            query = command[4]
-            for required in (
-                "JLPT iPad Reader (Private LAN)",
-                "Enabled -eq 'True'",
-                "Direction -eq 'Inbound'",
-                "Action -eq 'Allow'",
-                "Profile -eq 'Private'",
-                "Get-NetFirewallPortFilter",
-                "Protocol -eq 'TCP'",
-                "LocalPort -eq '8765'",
-                "Get-NetFirewallAddressFilter",
-                "@($addressFilter.RemoteAddress).Count -eq 1",
-                "RemoteAddress -contains 'LocalSubnet'",
-            ):
-                self.assertIn(required, query)
-            self.assertEqual(
-                kwargs,
-                {"capture_output": True, "text": True, "timeout": 10, "check": True},
-            )
-            return subprocess.CompletedProcess(command, 0, stdout="True\n", stderr="")
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(rule), stderr="")
 
         self.assertTrue(firewall_rule_present(8765, runner=matching_query_runner))
 
+    def test_status_rejects_an_exact_rule_when_a_broad_same_name_sibling_exists(self) -> None:
+        exact = _firewall_rule()
+        broad = _firewall_rule(
+            Profile="Public",
+            RemoteAddress=["Any"],
+            Program="Any",
+        )
+
+        def mixed_rule_runner(command, **kwargs):
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps([exact, broad]),
+                stderr="",
+            )
+
+        self.assertFalse(firewall_rule_present(8765, runner=mixed_rule_runner))
+
     def test_status_query_returns_false_when_no_matching_rule_exists(self) -> None:
         def no_rule_runner(command, **kwargs):
-            return subprocess.CompletedProcess(command, 0, stdout="False\n", stderr="")
+            return subprocess.CompletedProcess(command, 0, stdout="[]", stderr="")
 
         self.assertFalse(firewall_rule_present(8765, runner=no_rule_runner))
 
@@ -67,6 +67,8 @@ class ReaderFirewallTests(unittest.TestCase):
                 str(script.resolve()),
                 "-Port",
                 "8765",
+                "-Program",
+                str(Path(sys.executable).resolve()),
             ]
 
             def successful_runner(command, **kwargs):
@@ -125,6 +127,8 @@ class ReaderFirewallTests(unittest.TestCase):
                 str(script),
                 "-Port",
                 "8765",
+                "-Program",
+                str(Path(sys.executable).resolve()),
                 "-WhatIf",
             ],
             capture_output=True,
@@ -144,8 +148,25 @@ class ReaderFirewallTests(unittest.TestCase):
                 "LocalPort": 8765,
                 "Profile": "Private",
                 "RemoteAddress": "LocalSubnet",
+                "Program": str(Path(sys.executable).resolve()),
             },
         )
+
+
+def _firewall_rule(**changes):
+    rule = {
+        "DisplayName": "JLPT iPad Reader (Private LAN)",
+        "Enabled": "True",
+        "Direction": "Inbound",
+        "Action": "Allow",
+        "Profile": "Private",
+        "Protocol": "TCP",
+        "LocalPort": "8765",
+        "RemoteAddress": ["LocalSubnet"],
+        "Program": str(Path(sys.executable).resolve()),
+    }
+    rule.update(changes)
+    return rule
 
 
 if __name__ == "__main__":

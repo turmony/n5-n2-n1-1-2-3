@@ -1,7 +1,11 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [ValidateRange(1024, 65535)]
-    [int]$Port = 8765
+    [int]$Port = 8765,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Program
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +18,7 @@ $ruleParameters = [ordered]@{
     LocalPort     = $Port
     Profile       = 'Private'
     RemoteAddress = 'LocalSubnet'
+    Program       = $Program
 }
 
 # Preview is deliberately resolved before privilege checks or firewall cmdlets.
@@ -27,7 +32,7 @@ if ($WhatIfPreference) {
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Port $Port"
+    $arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Port $Port -Program `"$Program`""
     try {
         $process = Start-Process `
             -FilePath 'powershell.exe' `
