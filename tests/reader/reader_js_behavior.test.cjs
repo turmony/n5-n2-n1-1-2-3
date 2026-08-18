@@ -28,6 +28,33 @@ test("a stale or deleted current page remains sticky across later generations", 
   assert.equal(core.decideReaderUpdate("hash-v1", "library/card/", "v2", third, "deleted"), "deleted");
 });
 
+test("deletion supersedes an already sticky stale-page state", () => {
+  const deleted = { version: "v3", pages: { "library/other/": "changed" } };
+  assert.equal(core.decideReaderUpdate("hash-v1", "library/card/", "v2", deleted, "stale"), "deleted");
+});
+
+test("installing an instant-navigation page clears the old toast and sticky state", () => {
+  const oldElement = { id: "old" };
+  const nextElement = { id: "next" };
+  const nextPage = { element: nextElement, pageKey: "library/next/", pageHash: "next", generation: "v2" };
+  let removedToasts = 0;
+  const transitioned = core.installPageLifecycle(
+    { element: oldElement, pageKey: "library/old/", pageHash: "old", generation: "v1" },
+    nextPage,
+    "stale",
+    () => { removedToasts += 1; }
+  );
+  assert.equal(transitioned.changed, true);
+  assert.equal(transitioned.stickyState, "");
+  assert.equal(transitioned.pageState, nextPage);
+  assert.equal(removedToasts, 1);
+
+  const unchanged = core.installPageLifecycle(nextPage, nextPage, "stale", () => { removedToasts += 1; });
+  assert.equal(unchanged.changed, false);
+  assert.equal(unchanged.stickyState, "stale");
+  assert.equal(removedToasts, 1);
+});
+
 test("only an unchanged displayed page auto reloads for another-page generation", () => {
   const next = { version: "v2", pages: { "library/card/": "same", "library/other/": "changed" } };
   assert.equal(core.decideReaderUpdate("same", "library/card/", "v1", next, ""), "reload");

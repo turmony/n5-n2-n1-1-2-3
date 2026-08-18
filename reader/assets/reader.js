@@ -25,13 +25,21 @@
   }
 
   function decideReaderUpdate(displayedHash, pageKey, currentVersion, nextManifest, stickyState) {
-    if (stickyState === "stale" || stickyState === "deleted") return stickyState;
     const nextHash = nextManifest.pages[pageKey];
     if (displayedHash && nextHash === undefined) return "deleted";
+    if (stickyState === "stale" || stickyState === "deleted") return stickyState;
     if (displayedHash && displayedHash !== nextHash) return "stale";
     if (!currentVersion) return "baseline";
     if (currentVersion === nextManifest.version) return "none";
     return "reload";
+  }
+
+  function installPageLifecycle(currentPageState, nextPageState, stickyState, removeToast) {
+    if (nextPageState.element === currentPageState.element) {
+      return { changed: false, pageState: currentPageState, stickyState: stickyState };
+    }
+    removeToast();
+    return { changed: true, pageState: nextPageState, stickyState: "" };
   }
 
   function captureScrollSnapshot(pathname, offset) {
@@ -50,6 +58,7 @@
   const core = {
     catalogEntryMatches: catalogEntryMatches,
     decideReaderUpdate: decideReaderUpdate,
+    installPageLifecycle: installPageLifecycle,
     captureScrollSnapshot: captureScrollSnapshot,
     validContinuePath: validContinuePath
   };
@@ -188,9 +197,13 @@
   function initializeReaderPage() {
     flushScheduledScroll();
     const nextPageState = readPageState();
-    if (nextPageState.element !== jlptPageState.element) {
-      jlptPageState = nextPageState;
-      jlptStickyUpdate = "";
+    const lifecycle = installPageLifecycle(jlptPageState, nextPageState, jlptStickyUpdate, function () {
+      const toast = document.querySelector(".jlpt-update-toast");
+      if (toast) toast.remove();
+    });
+    jlptPageState = lifecycle.pageState;
+    jlptStickyUpdate = lifecycle.stickyState;
+    if (lifecycle.changed) {
       window.jlptManifest = undefined;
     }
     applyTheme(localStorage.getItem(THEME_KEY) || "system");
@@ -289,10 +302,10 @@
       location.reload();
       return;
     }
-    const wasSticky = jlptStickyUpdate;
+    const previousSticky = jlptStickyUpdate;
     jlptStickyUpdate = decision;
     jlptPageState.generation = next.version;
-    if (wasSticky) return;
+    if (previousSticky === decision) return;
     if (decision === "deleted") {
       showUpdateToast(
         "当前资料已删除；返回目录后将不再显示",
