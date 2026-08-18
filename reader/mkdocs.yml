@@ -1,0 +1,38 @@
+site_name: JLPT 学习资料
+site_description: 仅限家庭局域网的只读学习资料
+theme:
+  name: material
+  language: zh
+  font: false
+  custom_dir: overrides
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+plugins:
+  - jlpt_reader:
+      assets_dir: assets
+  - search:
+      lang:
+        - ja
+        - zh
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+extra_css:
+  - assets/reader.css
+extra_javascript:
+  - assets/reader.js
+repo_url: null
+edit_uri: null

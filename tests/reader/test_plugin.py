@@ -43,6 +43,22 @@ class _CodeTextParser(HTMLParser):
             self.blocks[-1] += data
 
 
+class _DocumentContractParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.metas: list[dict[str, str | None]] = []
+        self.resources: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "meta":
+            self.metas.append(attributes)
+        if tag == "script" and attributes.get("src"):
+            self.resources.append(attributes["src"] or "")
+        if tag == "link" and attributes.get("href"):
+            self.resources.append(attributes["href"] or "")
+
+
 def _article(html: str) -> str:
     return html.split('<article class="md-content__inner md-typeset">', 1)[1].split("</article>", 1)[0]
 
@@ -87,6 +103,57 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
 
 
 class ReaderPluginTests(unittest.TestCase):
+    def test_shipped_reader_theme_builds_a_private_ipad_document_contract(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        config_file = project_root / "reader/mkdocs.yml"
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            docs = base / "jlpt-notes"
+            docs.mkdir()
+            (docs / "N3-G-0042.md").write_text(
+                '---\n{"id":"N3-G-0042","level":"N3","kind":"grammar","title":"～うちに"}\n---\n\n# 核心\n正文\n',
+                encoding="utf-8",
+            )
+            site = base / "site"
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            html = _site_page_containing(site, "正文")
+            parser = _DocumentContractParser()
+            parser.feed(html)
+            metadata = {item.get("name"): item.get("content") for item in parser.metas}
+            self.assertEqual(metadata["robots"], "noindex, nofollow")
+            self.assertEqual(metadata["apple-mobile-web-app-capable"], "yes")
+            self.assertEqual(metadata["apple-mobile-web-app-title"], "JLPT 阅读")
+            self.assertTrue(metadata["jlpt-page-key"])
+            self.assertTrue((site / "assets/reader.css").is_file())
+            self.assertTrue((site / "assets/reader.js").is_file())
+            self.assertTrue(any("reader.css" in resource for resource in parser.resources))
+            self.assertTrue(any("reader.js" in resource for resource in parser.resources))
+            self.assertTrue(any("assets/javascripts/bundle." in resource for resource in parser.resources))
+            self.assertFalse(
+                [resource for resource in parser.resources if resource.startswith(("http://", "https://", "//"))]
+            )
+            self.assertIn('data-level="N3"', (site / "index.html").read_text(encoding="utf-8"))
+
+            reader_css = (site / "assets/reader.css").read_text(encoding="utf-8")
+            reader_js = (site / "assets/reader.js").read_text(encoding="utf-8")
+            self.assertIn("safe-area-inset", reader_css)
+            self.assertIn("prefers-reduced-motion", reader_css)
+            for storage_key in (
+                "jlpt-reader-theme",
+                "jlpt-reader-font-scale",
+                "jlpt-reader-last-page",
+                "jlpt-reader-scroll:",
+            ):
+                self.assertIn(storage_key, reader_js)
+            self.assertIn("reader-version.json", reader_js)
+            self.assertIn('cache: "no-store"', reader_js)
+            self.assertIn("未标记", reader_js)
+            self.assertIn("正式语法", reader_js)
+            self.assertNotIn("serviceWorker.register", reader_js)
+            self.assertNotRegex(reader_css + reader_js, r"https?://|fonts\.googleapis\.com")
+
     def test_build_uses_display_title_and_does_not_copy_raw_sources(self) -> None:
         with TemporaryDirectory() as directory:
             base = Path(directory)
