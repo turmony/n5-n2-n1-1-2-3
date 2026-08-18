@@ -4,9 +4,35 @@ from tempfile import TemporaryDirectory
 from threading import Event
 
 from jlpt_notes.reader.watcher import ChangeDetector, FileStamp, SourceWatcher, snapshot_sources
+from jlpt_notes.reader.sources import load_source_pages
 
 
 class ReaderWatcherTests(unittest.TestCase):
+    def test_snapshot_and_discovery_share_visible_supported_file_eligibility(self) -> None:
+        with TemporaryDirectory() as directory:
+            with TemporaryDirectory() as outside_directory:
+                root = Path(directory)
+                (root / "nested").mkdir()
+                (root / ".hidden").mkdir()
+                (root / "card.md").write_text("# card\n", encoding="utf-8")
+                (root / "draft.tmp.md").write_text("# draft\n", encoding="utf-8")
+                (root / "events.jsonl").write_text("{}\n", encoding="utf-8")
+                (root / "unsupported.txt").write_text("skip", encoding="utf-8")
+                (root / ".hidden.md").write_text("skip", encoding="utf-8")
+                (root / ".hidden" / "private.md").write_text("skip", encoding="utf-8")
+                external = Path(outside_directory) / "external.md"
+                external.write_text("# outside\n", encoding="utf-8")
+                try:
+                    (root / "nested" / "linked.md").symlink_to(external)
+                except OSError:
+                    self.skipTest("当前环境不允许创建符号链接")
+
+                displayed = [page.relative_path.as_posix() for page in load_source_pages(root)]
+                watched = [stamp.path for stamp in snapshot_sources(root)]
+
+                self.assertEqual(displayed, ["card.md", "draft.tmp.md", "events.jsonl"])
+                self.assertEqual(watched, displayed)
+
     def test_snapshot_tracks_only_visible_md_and_jsonl_in_stable_order(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

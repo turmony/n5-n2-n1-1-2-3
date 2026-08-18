@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import os
 from pathlib import Path
 from threading import Event, Lock, Thread, current_thread
 import time
 from typing import Callable
 
-
-_SOURCE_SUFFIXES = {".md", ".jsonl"}
-_TEMP_SUFFIXES = (".tmp", ".temp", ".swp", ".part", "~")
+from .sources import iter_supported_visible_source_files
 
 
 @dataclass(frozen=True, order=True)
@@ -34,49 +31,20 @@ def snapshot_sources(root: Path) -> tuple[FileStamp, ...]:
     """
     resolved = root.resolve(strict=True)
     stamps: list[FileStamp] = []
-    for directory, directory_names, file_names in os.walk(resolved, followlinks=False):
-        current = Path(directory)
-        directory_names[:] = sorted(
-            (
-                name
-                for name in directory_names
-                if not _is_ignored_name(name) and not (current / name).is_symlink()
-            ),
-            key=_name_sort_key,
-        )
-        for name in sorted(file_names, key=_name_sort_key):
-            path = current / name
-            if (
-                _is_ignored_name(name)
-                or path.is_symlink()
-                or path.suffix.lower() not in _SOURCE_SUFFIXES
-                or not path.is_file()
-            ):
-                continue
-            try:
-                stat = path.stat()
-            except OSError:
-                # A rename/atomic editor-save can legitimately win this race.
-                continue
-            stamps.append(
-                FileStamp(
-                    path.relative_to(resolved).as_posix(),
-                    stat.st_size,
-                    stat.st_mtime_ns,
-                )
+    for path in iter_supported_visible_source_files(resolved):
+        try:
+            stat = path.stat()
+        except OSError:
+            # A rename/atomic editor-save can legitimately win this race.
+            continue
+        stamps.append(
+            FileStamp(
+                path.relative_to(resolved).as_posix(),
+                stat.st_size,
+                stat.st_mtime_ns,
             )
+        )
     return tuple(sorted(stamps, key=lambda stamp: _name_sort_key(stamp.path)))
-
-
-def _is_ignored_name(name: str) -> bool:
-    lowered = name.casefold()
-    return (
-        name.startswith(".")
-        or name.startswith("~")
-        or lowered.endswith(_TEMP_SUFFIXES)
-        or ".tmp." in lowered
-        or ".temp." in lowered
-    )
 
 
 def _name_sort_key(value: str) -> tuple[str, str]:

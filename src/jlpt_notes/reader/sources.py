@@ -50,7 +50,7 @@ def load_source_pages(root: Path) -> tuple[SourcePage, ...]:
     """Return every visible Markdown or JSONL source below *root* read-only."""
     resolved_root = root.resolve(strict=True)
     pages: list[SourcePage] = []
-    for path in _source_files(resolved_root):
+    for path in iter_supported_visible_source_files(resolved_root):
         relative_path = path.relative_to(resolved_root)
         content = path.read_bytes()
         text = content.decode("utf-8")
@@ -105,9 +105,17 @@ def build_catalog_page(pages: tuple[SourcePage, ...]) -> SourcePage:
     )
 
 
-def _source_files(root: Path) -> tuple[Path, ...]:
+def iter_supported_visible_source_files(root: Path) -> tuple[Path, ...]:
+    """Return the single supported-visible source set used by the reader.
+
+    Files are eligible when they are non-symlink regular files below *root*,
+    have a Markdown or JSONL suffix, and have no hidden path component.  Both
+    rendering discovery and change polling use this function so every rendered
+    file can trigger a rebuild when it changes.
+    """
+    resolved_root = root.resolve(strict=True)
     paths: list[Path] = []
-    for directory, directory_names, file_names in os.walk(root, followlinks=False):
+    for directory, directory_names, file_names in os.walk(resolved_root, followlinks=False):
         current = Path(directory)
         directory_names[:] = sorted(
             (
