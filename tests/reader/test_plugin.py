@@ -615,6 +615,18 @@ class ReaderPluginTests(unittest.TestCase):
             page = _card_page(site, "孤卡")
             self.assertEqual("", _pager_section(page.read_text(encoding="utf-8")))
 
+    def test_card_pager_style_contract_ships_touch_targets(self) -> None:
+        css = (Path(__file__).resolve().parents[2] / "reader/assets/reader.css").read_text(encoding="utf-8")
+
+        rule = re.search(r"\.jlpt-card-pager__link\s*\{[^}]*\}", css)
+        self.assertIsNotNone(rule)
+        assert rule is not None
+        self.assertIn("min-height: 44px", rule.group(0))
+        self.assertIn("var(--md-default-fg-color", rule.group(0))
+        self.assertIn(".jlpt-card-pager__label", css)
+        self.assertIn(".jlpt-card-pager__title", css)
+        self.assertIn(".jlpt-card-pager__link--next", css)
+
 
 if __name__ == "__main__":
     unittest.main()

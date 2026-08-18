@@ -234,3 +234,41 @@ html[data-jlpt-font="large"] {
     scroll-behavior: auto;
   }
 }
+
+/* 同级语法卡翻卡栏：两格、44px 触控、明暗主题跟随 Material 变量 */
+.jlpt-card-pager {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.jlpt-card-pager__link {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  color: var(--md-default-fg-color);
+  text-decoration: none;
+}
+
+.jlpt-card-pager__link--next {
+  text-align: right;
+}
+
+.jlpt-card-pager__label {
+  font-size: calc(0.8rem * var(--jlpt-font-scale));
+  color: var(--md-default-fg-color--light);
+}
+
+.jlpt-card-pager__title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
