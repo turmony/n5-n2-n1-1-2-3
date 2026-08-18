@@ -2,6 +2,7 @@ import unittest
 import json
 from pathlib import Path
 import shutil
+import sys
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -26,6 +27,32 @@ class ReaderBuilderTests(unittest.TestCase):
             self.assertTrue((destination / "index.html").is_file())
             self.assertIsNotNone(result.version)
             self.assertEqual((card.read_bytes(), card.stat().st_mtime_ns), before)
+
+    def test_build_resolves_config_relative_paths_without_stdin(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / "notes"
+            source.mkdir()
+            (source / "card.md").write_text("# 卡片\n", encoding="utf-8")
+            destination = base / "site"
+
+            # The GUI launcher (pythonw from Explorer) starts with no standard
+            # handles, so sys.stdin is None; MkDocs must still resolve every
+            # config-relative path (theme custom_dir, plugin assets) correctly.
+            real_stdin = sys.stdin
+            sys.stdin = None
+            try:
+                result = build_site(source, project / "reader/mkdocs.yml", destination)
+            finally:
+                sys.stdin = real_stdin
+
+            self.assertTrue(result.success, result.error)
+            self.assertTrue((destination / "index.html").is_file())
+            self.assertTrue(
+                (destination / "assets" / "reader.css").is_file(),
+                "plugin assets must resolve relative to the config file",
+            )
 
     def test_failed_build_writes_log_beside_temporary_site_not_in_source(self) -> None:
         with TemporaryDirectory() as directory:

@@ -54,8 +54,14 @@ def build_site(
         else:
             target.mkdir(exist_ok=False)
         created = True
+        resolved_config = str(config_path.resolve(strict=True))
         config = load_config(
-            config_file=str(config_path.resolve(strict=True)),
+            config_file=resolved_config,
+            # pythonw started from Explorer has no standard handles, and
+            # MkDocs derives config_file_path from the opened file only when
+            # sys.stdin exists; pass it explicitly so config-relative paths
+            # (theme custom_dir, plugin assets) never depend on the console.
+            config_file_path=resolved_config,
             docs_dir=str(source),
             site_dir=str(target),
         )
