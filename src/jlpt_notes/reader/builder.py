@@ -12,6 +12,9 @@ from mkdocs.commands.build import build
 from mkdocs.config import load_config
 
 
+_MAX_RETIRED_GENERATIONS = 2
+
+
 @dataclass(frozen=True)
 class BuildResult:
     """The observable outcome of building one temporary site generation."""
@@ -100,7 +103,10 @@ class SiteStore:
         """Atomically publish a complete new generation.
 
         The generation older than the immediately previous one is discarded
-        only after the replacement has been verified.
+        only after the replacement has been verified.  If deletion is
+        persistently blocked, this raises ``RuntimeError`` *before* changing
+        ``current``; callers should report the error and keep serving the
+        existing last-good site.  ``cleanup_errors`` supplies diagnostics.
         """
         candidate = site_dir.resolve(strict=True)
         if not candidate.is_dir() or not (candidate / "index.html").is_file():
@@ -110,6 +116,8 @@ class SiteStore:
         with self._lock:
             if candidate == self._current:
                 return
+            self._collect_retired_locked()
+            self._require_publication_capacity_locked()
             obsolete = self._previous
             self._previous = self._current
             self._current = candidate
@@ -190,3 +198,15 @@ class SiteStore:
                 continue
             self._retired.remove(path)
             self._cleanup_errors.pop(path, None)
+
+    def _require_publication_capacity_locked(self) -> None:
+        if len(self._retired) < _MAX_RETIRED_GENERATIONS:
+            return
+        details = "; ".join(self.cleanup_errors)
+        message = (
+            f"Reader generation cleanup backlog limit ({_MAX_RETIRED_GENERATIONS}) reached; "
+            "the last-good site remains active."
+        )
+        if details:
+            message += f" Cleanup errors: {details}"
+        raise RuntimeError(message)

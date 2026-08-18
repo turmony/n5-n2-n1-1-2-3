@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from jlpt_notes.reader.builder import SiteStore, build_site
 
@@ -94,6 +95,33 @@ class ReaderBuilderTests(unittest.TestCase):
             self.assertTrue(second.exists())
             self.assertTrue(third.exists())
             self.assertEqual(store.current, third.resolve())
+
+    def test_site_store_refuses_publication_after_persistent_cleanup_backlog(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            sites = tuple(root / f"site-{number}" for number in range(1, 6))
+            for site in sites:
+                site.mkdir()
+                (site / "index.html").write_text(site.name, encoding="utf-8")
+            store = SiteStore(root)
+            store.activate(sites[0])
+            store.activate(sites[1])
+
+            with patch(
+                "jlpt_notes.reader.builder.shutil.rmtree",
+                side_effect=PermissionError("locked generation"),
+            ):
+                store.activate(sites[2])
+                store.activate(sites[3])
+                with self.assertRaisesRegex(RuntimeError, "cleanup backlog limit"):
+                    store.activate(sites[4])
+
+            self.assertEqual(store.current, sites[3].resolve())
+            active = store.resolve("index.html")
+            assert active is not None
+            self.assertEqual(active.read_text(encoding="utf-8"), "site-4")
+            self.assertEqual(len(store.cleanup_errors), 2)
+            self.assertTrue(all("PermissionError" in error for error in store.cleanup_errors))
 
 
 if __name__ == "__main__":
