@@ -32,6 +32,24 @@ class _BlockingLeaseStore(SiteStore):
             self.lease_exited.set()
 
 
+class _TrackingLeaseStore(SiteStore):
+    """Observe a real streaming lease without delaying the handler."""
+
+    def __init__(self, session_root: Path) -> None:
+        super().__init__(session_root)
+        self.lease_entered = Event()
+        self.lease_exited = Event()
+
+    @contextmanager
+    def lease(self, request_path: str):
+        try:
+            with super().lease(request_path) as path:
+                self.lease_entered.set()
+                yield path
+        finally:
+            self.lease_exited.set()
+
+
 class ReaderServerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = TemporaryDirectory()
@@ -252,13 +270,13 @@ class ReaderServerTests(unittest.TestCase):
         with self.assertRaises(OSError):
             socket.create_connection(("127.0.0.1", self.server.bound_port), timeout=0.2)
 
-    def test_stop_waits_for_an_inflight_response_to_release_its_site_lease(self) -> None:
+    def test_stop_waits_for_an_aborted_handler_to_release_its_site_lease(self) -> None:
         self.server.stop()
         blocking_store = _BlockingLeaseStore(self.root)
         blocking_store.activate(self.site)
         self.server = ReadOnlyServer(blocking_store, "127.0.0.1", 0)
         self.server.start()
-        response: list[tuple[int, bytes]] = []
+        response: list[tuple[int, bytes] | str] = []
 
         def read_page() -> None:
             connection = http.client.HTTPConnection(
@@ -268,6 +286,8 @@ class ReaderServerTests(unittest.TestCase):
                 connection.request("GET", "/")
                 reply = connection.getresponse()
                 response.append((reply.status, reply.read()))
+            except (http.client.RemoteDisconnected, ConnectionResetError, OSError):
+                response.append("aborted")
             finally:
                 connection.close()
 
@@ -282,22 +302,92 @@ class ReaderServerTests(unittest.TestCase):
             stop_finished.set()
 
         stopping = Thread(target=stop_server, name="test-inflight-stop")
-        stopping.start()
-        try:
-            self.assertFalse(
-                stop_finished.wait(timeout=1.0),
-                "shutdown returned while a response still held the active generation",
-            )
-            self.assertFalse(blocking_store.lease_exited.is_set())
-        finally:
-            blocking_store.release_response.set()
-            stopping.join(timeout=5)
-            client.join(timeout=5)
+        handler_errors: list[tuple[object, ...]] = []
+        with patch.object(
+            self.server._httpd,
+            "handle_error",
+            side_effect=lambda *args: handler_errors.append(args),
+        ):
+            stopping.start()
+            try:
+                self.assertFalse(
+                    stop_finished.wait(timeout=1.0),
+                    "shutdown returned while a response still held the active generation",
+                )
+                self.assertFalse(blocking_store.lease_exited.is_set())
+            finally:
+                blocking_store.release_response.set()
+                stopping.join(timeout=5)
+                client.join(timeout=5)
 
         self.assertFalse(stopping.is_alive())
         self.assertFalse(client.is_alive())
         self.assertTrue(blocking_store.lease_exited.is_set())
-        self.assertEqual(response, [(200, b"<h1>JLPT</h1>")])
+        self.assertEqual(response, ["aborted"])
+        self.assertEqual(handler_errors, [])
+
+    def test_stop_aborts_a_stalled_client_before_joining_request_workers(self) -> None:
+        self.server.stop()
+        large_file = self.site / "large.bin"
+        with large_file.open("wb") as stream:
+            stream.truncate(32 * 1024 * 1024)
+        tracking_store = _TrackingLeaseStore(self.root)
+        tracking_store.activate(self.site)
+        self.server = ReadOnlyServer(tracking_store, "127.0.0.1", 0)
+        real_get_request = self.server._httpd.get_request
+
+        def accept_with_small_send_buffer():
+            request, address = real_get_request()
+            request.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+            return request, address
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
+        with patch.object(
+            self.server._httpd,
+            "get_request",
+            side_effect=accept_with_small_send_buffer,
+        ):
+            self.server.start()
+            client.settimeout(5)
+            client.connect(("127.0.0.1", self.server.bound_port))
+            client.sendall(
+                b"GET /large.bin HTTP/1.1\r\n"
+                b"Host: 127.0.0.1\r\n"
+                b"Connection: close\r\n\r\n"
+            )
+            self.assertTrue(tracking_store.lease_entered.wait(timeout=5))
+            self.assertFalse(
+                tracking_store.lease_exited.wait(timeout=0.2),
+                "the response did not stall in the real socket write",
+            )
+
+        stop_finished = Event()
+        stop_errors: list[Exception] = []
+
+        def stop_server() -> None:
+            try:
+                self.server.stop()
+            except Exception as error:
+                stop_errors.append(error)
+            finally:
+                stop_finished.set()
+
+        stopping = Thread(target=stop_server, name="test-stalled-client-stop")
+        stopping.start()
+        completed_without_client_close = stop_finished.wait(timeout=1.0)
+        client.close()
+        stopping.join(timeout=5)
+
+        self.assertTrue(
+            completed_without_client_close,
+            "server shutdown waited for the stalled client to resume or close",
+        )
+        self.assertFalse(stopping.is_alive())
+        self.assertEqual(stop_errors, [])
+        self.assertTrue(tracking_store.lease_exited.wait(timeout=1.0))
+        tracking_store.close()
+        self.assertFalse(self.site.exists(), "the released generation could not be cleaned")
 
 
 if __name__ == "__main__":

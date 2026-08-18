@@ -577,6 +577,43 @@ class ReaderControllerTests(unittest.TestCase):
             self.assertIn("已停止", statuses[-1].message)
             controller.stop()
 
+    def test_double_rebind_cleanup_failure_retains_the_session_for_stop_retry(self) -> None:
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
+             patch(
+                 "jlpt_notes.reader.controller.ReaderSessionDirectory",
+                 _CleanupFailsOnceTemporary,
+             ), \
+             patch(
+                 "jlpt_notes.reader.controller.private_lan_addresses",
+                 return_value=(LanAddress(7, "192.168.1.42", "Private"),),
+             ), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", side_effect=[False, True]), \
+             patch("jlpt_notes.reader.controller.configure_firewall_rule", return_value=True):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            self.assertTrue(controller.start())
+            session = _CleanupFailsOnceTemporary.instances[0]
+            _FakeServer.creation_errors.extend(
+                [OSError("wildcard bind failed"), OSError("loopback bind failed")]
+            )
+
+            self.assertFalse(controller.configure_firewall())
+
+            self.assertEqual(session.cleanup_calls, 1)
+            self.assertIs(controller._temporary, session)
+            self.assertTrue(Path(session.name).is_dir())
+            self.assertIsNone(controller._watcher)
+            self.assertIsNone(controller._server)
+            self.assertIsNone(controller._store)
+            self.assertEqual(controller.urls, ())
+
+            controller.stop()
+
+            self.assertEqual(session.cleanup_calls, 2)
+            self.assertFalse(Path(session.name).exists())
+            self.assertIsNone(controller._temporary)
+            self.assertEqual(statuses[-1].state, "stopped")
+
     def test_close_during_firewall_confirmation_cannot_leave_a_server_running(self) -> None:
         configuration_started = Event()
         configuration_release = Event()

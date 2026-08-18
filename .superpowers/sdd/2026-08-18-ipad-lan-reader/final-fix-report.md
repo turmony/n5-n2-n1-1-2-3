@@ -230,3 +230,89 @@ in this restricted fix wave.
 There is no known code blocker from the nine findings. The only unmeasured part
 is physical iPad/browser latency, intentionally excluded by the task boundary.
 No requirement was weakened or silently changed.
+
+## Additional scoped shutdown repair wave
+
+Base commit: `9e7e4438fb7cd2cc1e9d182027f0d9979bc63900`
+
+This follow-up was explicitly limited to the two remaining Important shutdown
+findings. It performed no firewall/network inspection or mutation, shortcut or
+GUI action, or learner-source edit.
+
+### A. A non-reading client cannot hold shutdown indefinitely
+
+Root cause and RED evidence:
+
+- A real loopback client requested a sparse 32 MiB generated file with both
+  sides' socket buffers constrained to 4 KiB, then stopped reading. The handler
+  entered a real `SiteStore` lease and remained in the socket write.
+- Before the fix, `ReadOnlyServer.stop()` did not finish within the test's 1.0 s
+  bound. It finished only after the test closed the client socket.
+- Instrumentation showed listener shutdown completing at about 0.5 s with one
+  active request, followed by an active-socket close that still left
+  `server_close()` blocked. Python's socket object deferred the underlying
+  Winsock close because the handler's `makefile()` streams retained I/O
+  references.
+- A first minimal `shutdown()` plus ordinary `socket.close()` implementation
+  therefore remained RED. This evidence rejected a timeout-based workaround.
+
+GREEN implementation:
+
+- The threaded server registers every accepted request socket before its worker
+  starts and unregisters it only after the worker exits.
+- After the listener thread has stopped, explicit server shutdown calls
+  `shutdown(SHUT_RDWR)`, detaches each active socket, and closes the raw socket
+  handle with the platform-aware `socket.close(fd)`. This interrupts a pending
+  Winsock send without setting any timeout during normal iPad reads.
+- `server_close()` then joins all request workers. Only after their handlers
+  leave the lease can controller cleanup remove the site generation.
+- An abort before response headers is treated as normal explicit shutdown; the
+  handler does not attempt a second 404 write to the already detached socket or
+  emit a worker traceback.
+- The real stalled-client test is GREEN within the 1.0 s bound without client
+  cooperation, observes lease exit, and removes the generation. The companion
+  in-flight test proves shutdown still waits for a handler that has not yet left
+  its lease, even though that handler's client connection is explicitly
+  aborted.
+
+### B. Double-rebind cleanup retains retry ownership
+
+Root cause and RED evidence:
+
+- `_fail_closed_after_rebind()` copied the watcher/server/store/session
+  references and set every controller ownership field to `None` before calling
+  cleanup.
+- With a deterministic Windows-like `PermissionError` on the first session
+  cleanup, the RED test observed one cleanup call but
+  `controller._temporary is None`; a subsequent `stop()` had nothing to retry.
+
+GREEN implementation:
+
+- Normal stop and double-rebind failure now share one owned-resource cleanup
+  routine. It closes in dependency order (server, store, session) and clears
+  each controller field only after that resource's operation succeeds.
+- The already-stopped pre-rebind server is committed without a redundant stop.
+  Network-visible state is marked stopped before cleanup, so a cleanup error
+  cannot advertise a dead endpoint.
+- The behavioral test observes the first cleanup call fail while the session
+  reference and directory remain owned; watcher, server, and store—whose
+  cleanup succeeded—are cleared. A second `stop()` makes cleanup call two,
+  removes the directory, clears the session reference, and publishes one
+  coherent stopped state.
+
+### Follow-up verification
+
+- Focused server/controller/launcher/session selection: 41 passed in 8.545 s.
+- Full Python suite: 135 passed in 21.073 s.
+- Node behavior suite: 14 passed in 82.503 ms.
+- `python -m compileall -q src tests`: passed.
+- `git diff --check`: passed, with only expected line-ending notices.
+- Repository validation: passed (`资料库结构有效`).
+- Proportionate real shipped-config build: 12.437 s; 541 supported sources;
+  542 manifest pages; 542 HTML pages; 592 files; assets and search present; no
+  raw Markdown/JSONL output.
+- All 541 supported learner sources had identical size, nanosecond mtime, and
+  SHA-256 before and after that build.
+
+No blocker or known residual remains within this two-finding scope. Physical
+iPad behavior was not exercised, as required by the task boundary.

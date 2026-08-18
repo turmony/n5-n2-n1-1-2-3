@@ -282,33 +282,7 @@ class ReaderController:
             # failed later cleanup remains owned so a second stop can retry it.
             with self._configuration_lock:
                 with self._build_lock:
-                    with self._lifecycle_lock:
-                        server = self._server
-                    if server is not None:
-                        server.stop()
-                        with self._lifecycle_lock:
-                            if self._server is server:
-                                self._server = None
-
-                    with self._lifecycle_lock:
-                        store = self._store if self._server is None else None
-                    if store is not None:
-                        store.close()
-                        with self._lifecycle_lock:
-                            if self._store is store:
-                                self._store = None
-
-                    with self._lifecycle_lock:
-                        temporary = (
-                            self._temporary
-                            if self._server is None and self._store is None
-                            else None
-                        )
-                    if temporary is not None:
-                        temporary.cleanup()
-                        with self._lifecycle_lock:
-                            if self._temporary is temporary:
-                                self._temporary = None
+                    self._close_owned_resources_locked()
 
                     with self._lifecycle_lock:
                         self._started = False
@@ -344,28 +318,18 @@ class ReaderController:
         """Clean the whole session when neither LAN nor loopback can rebind."""
         with self._lifecycle_lock:
             self._stop_requested = True
+            self._started = False
+            self._lan_enabled = False
+            self._addresses = ()
+            self._network_reason = "服务重新绑定失败"
             watcher = self._watcher
         if watcher is not None:
             watcher.stop()
-        with self._build_lock:
             with self._lifecycle_lock:
-                server = self._server
-                store = self._store
-                temporary = self._temporary
-                self._watcher = None
-                self._server = None
-                self._store = None
-                self._temporary = None
-                self._started = False
-                self._lan_enabled = False
-                self._addresses = ()
-                self._network_reason = "服务重新绑定失败"
-            if server is not None and server is not stopped_server:
-                server.stop()
-            if store is not None:
-                store.close()
-            if temporary is not None:
-                temporary.cleanup()
+                if self._watcher is watcher:
+                    self._watcher = None
+        with self._build_lock:
+            self._close_owned_resources_locked(already_stopped_server=stopped_server)
         self._publish(
             ReaderStatus(
                 "error",
@@ -373,6 +337,41 @@ class ReaderController:
                 f"{wildcard_error}；{fallback_error}",
             )
         )
+
+    def _close_owned_resources_locked(
+        self,
+        *,
+        already_stopped_server: ReadOnlyServer | None = None,
+    ) -> None:
+        """Close owned server, store, and session with commit-after-success semantics."""
+        with self._lifecycle_lock:
+            server = self._server
+        if server is not None:
+            if server is not already_stopped_server:
+                server.stop()
+            with self._lifecycle_lock:
+                if self._server is server:
+                    self._server = None
+
+        with self._lifecycle_lock:
+            store = self._store if self._server is None else None
+        if store is not None:
+            store.close()
+            with self._lifecycle_lock:
+                if self._store is store:
+                    self._store = None
+
+        with self._lifecycle_lock:
+            temporary = (
+                self._temporary
+                if self._server is None and self._store is None
+                else None
+            )
+        if temporary is not None:
+            temporary.cleanup()
+            with self._lifecycle_lock:
+                if self._temporary is temporary:
+                    self._temporary = None
 
     def _next_build(self, store: SiteStore, temporary_root: Path) -> BuildResult:
         self._build_number += 1

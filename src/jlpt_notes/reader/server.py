@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import mimetypes
 import os
 from pathlib import PurePosixPath
+import socket
 from threading import Event, Lock, Thread, current_thread
 from urllib.parse import unquote, urlsplit
 
@@ -71,9 +72,12 @@ class ReadOnlyServer:
                 self._thread.join()
         finally:
             try:
-                self._httpd.server_close()
+                self._httpd.abort_active_requests()
             finally:
-                self._stop_complete.set()
+                try:
+                    self._httpd.server_close()
+                finally:
+                    self._stop_complete.set()
 
 
 class _JoinableRequestServer(ThreadingHTTPServer):
@@ -81,6 +85,42 @@ class _JoinableRequestServer(ThreadingHTTPServer):
 
     daemon_threads = False
     block_on_close = True
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._active_requests: set[socket.socket] = set()
+        self._active_requests_lock = Lock()
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request: socket.socket, client_address) -> None:
+        with self._active_requests_lock:
+            self._active_requests.add(request)
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            with self._active_requests_lock:
+                self._active_requests.discard(request)
+            raise
+
+    def process_request_thread(self, request: socket.socket, client_address) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            with self._active_requests_lock:
+                self._active_requests.discard(request)
+
+    def abort_active_requests(self) -> None:
+        """Interrupt request I/O so worker joins cannot depend on a client."""
+        with self._active_requests_lock:
+            requests = tuple(self._active_requests)
+        for request in requests:
+            try:
+                request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                socket.close(request.detach())
+            except OSError:
+                pass
 
 
 def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
@@ -144,7 +184,12 @@ def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
                     # another process removes a file before headers are sent,
                     # expose only a normal missing-page response.
                     if not headers_sent:
-                        self.send_error(404)
+                        try:
+                            self.send_error(404)
+                        except OSError:
+                            # Explicit server shutdown may already have
+                            # detached this request socket.
+                            return
 
         def log_message(self, format: str, *args: object) -> None:
             # Query strings and local study paths must not leak to stderr.
