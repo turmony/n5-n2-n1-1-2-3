@@ -98,6 +98,32 @@ class ReaderSourceTests(unittest.TestCase):
             self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page.markdown)
             self.assertNotIn("<script>alert(1)</script>", page.markdown)
 
+    def test_jsonl_attempt_summary_shows_core_attempt_fields_and_full_record(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "attempts.jsonl").write_text(
+                '{"question_id":"N5-Q-0001","revision":1,"item_type":"grammar_form",'
+                '"selected_option":"<4>","is_correct":false,"uncertain":false,'
+                '"error_tags":["接续错误"],"date":"2026-07-26"}\n',
+                encoding="utf-8",
+            )
+
+            page = load_source_pages(root)[0]
+
+            for field in (
+                "question_id",
+                "item_type",
+                "selected_option",
+                "is_correct",
+                "uncertain",
+                "revision",
+            ):
+                self.assertIn(f"<dt>{field}</dt>", page.markdown)
+            self.assertIn("&lt;4&gt;", page.markdown)
+            self.assertNotIn("<4>", page.markdown)
+            self.assertIn('<details class="jlpt-json-record">', page.markdown)
+            self.assertIn("&quot;question_id&quot;", page.markdown)
+
     def test_catalog_contains_filter_data_titles_and_deterministic_order(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)

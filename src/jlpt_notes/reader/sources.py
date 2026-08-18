@@ -14,8 +14,14 @@ from .metadata import DocumentMetadata, ParsedMarkdown, parse_markdown
 
 _SUMMARY_FIELDS = (
     "id",
+    "question_id",
     "card_id",
     "draft_id",
+    "revision",
+    "item_type",
+    "selected_option",
+    "is_correct",
+    "uncertain",
     "date",
     "created_at",
     "completed_at",
