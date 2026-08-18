@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 from typing import Any
+from urllib.parse import quote
 
 import bleach
 from mkdocs import plugins
@@ -32,22 +33,41 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         self._config_root = Path(config.config_file_path).resolve().parent
         self._pages = load_source_pages(self._source_root)
         self._pages_by_uri: dict[str, SourcePage] = {}
+        self._files_by_relative_path: dict[Path, File] = {}
         self._url_hashes: dict[str, str] = {}
         return config
 
     def on_files(self, files: Files, config, **kwargs: Any) -> Files:
-        pages = (*self._pages, build_catalog_page(self._pages))
         virtual: list[File] = []
-        for source in pages:
+        for source in self._pages:
             file = File(
-                source.output_path.as_posix(),
+                _virtual_source_path(source).as_posix(),
                 str(self._source_root),
                 config.site_dir,
                 config.use_directory_urls,
             )
             file.content_string = source.markdown
             self._pages_by_uri[file.src_uri] = source
+            self._files_by_relative_path[source.relative_path] = file
             virtual.append(file)
+        catalog = build_catalog_page(self._pages)
+        catalog = SourcePage(
+            relative_path=catalog.relative_path,
+            output_path=catalog.output_path,
+            markdown=_catalog_with_final_urls(catalog.markdown, self._files_by_relative_path),
+            metadata=catalog.metadata,
+            content_hash=catalog.content_hash,
+            warning=catalog.warning,
+        )
+        catalog_file = File(
+            "index.md",
+            str(self._source_root),
+            config.site_dir,
+            config.use_directory_urls,
+        )
+        catalog_file.content_string = catalog.markdown
+        self._pages_by_uri[catalog_file.src_uri] = catalog
+        virtual.insert(0, catalog_file)
         for name in ("reader.css", "reader.js"):
             source_path = self._config_root / self.config.assets_dir / name
             file = File(
@@ -65,6 +85,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             source = self._pages_by_uri.get(page.file.src_uri)
             if source is not None:
                 page.title = source.metadata.display_title
+        _localize_and_sort_navigation(nav.items, self._pages_by_uri)
         return nav
 
     def on_page_markdown(self, markdown: str, page, **kwargs: Any) -> str:
@@ -105,13 +126,136 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
 
 
 def _demote_headings(markdown: str) -> str:
-    """Reserve the H1 for the generated display title."""
-    return re.sub(
-        r"^(#{1,5})(?=\s)",
-        lambda match: "#" + match.group(1),
-        markdown,
-        flags=re.MULTILINE,
+    """Reserve H1 for the generated display title without rewriting code samples."""
+    output: list[str] = []
+    lines = markdown.splitlines(keepends=True)
+    in_fence: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        fence = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
+        if fence:
+            marker = fence.group(1)
+            if in_fence is None:
+                in_fence = marker[0]
+            elif marker[0] == in_fence:
+                in_fence = None
+            output.append(line)
+            index += 1
+            continue
+        if in_fence or re.match(r"^(?: {4}|\t)", line):
+            output.append(line)
+            index += 1
+            continue
+
+        if _is_setext_h1(lines, index):
+            output.append(_setext_to_atx_h2(line))
+            index += 2
+            continue
+
+        line = re.sub(
+            r"^(\s{0,3}(?:>\s*)?)(#{1,5})(?=\s)",
+            lambda match: match.group(1) + "#" + match.group(2),
+            line,
+        )
+        line = re.sub(r"<(/?)h1\b", r"<\1h2", line, flags=re.IGNORECASE)
+        output.append(line)
+        index += 1
+    return "".join(output)
+
+
+def _is_setext_h1(lines: list[str], index: int) -> bool:
+    if index + 1 >= len(lines):
+        return False
+    current = lines[index]
+    underline = lines[index + 1]
+    return bool(
+        current.strip()
+        and not re.match(r"^\s{0,3}(?:>|#{1,6}|[-+*]\s|\d+[.)]\s)", current)
+        and re.match(r"^\s{0,3}=+\s*(?:\r?\n)?$", underline)
     )
+
+
+def _setext_to_atx_h2(line: str) -> str:
+    newline = "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
+    return "## " + line.rstrip("\r\n").lstrip() + newline
+
+
+def _virtual_source_path(source: SourcePage) -> Path:
+    """Return a collision-proof virtual Markdown path for one source file."""
+    source_kind = "jsonl" if source.relative_path.suffix.lower() == ".jsonl" else "markdown"
+    name = f"{source.relative_path.name}.__reader_{source_kind}__.md"
+    return Path("library") / source.relative_path.parent / name
+
+
+def _catalog_with_final_urls(markdown: str, files: dict[Path, File]) -> str:
+    """Replace catalog source links with the final route assigned by MkDocs files."""
+    rewritten = markdown
+    for relative_path, file in files.items():
+        escaped_path = escape(relative_path.as_posix())
+        pattern = (
+            r'(<li class="jlpt-catalog-entry"[^>]*><a href=")[^"]+("[^>]*>.*?'
+            + re.escape(f'<span class="jlpt-catalog-path">{escaped_path}</span>')
+            + r"</li>)"
+        )
+        rewritten, replacements = re.subn(
+            pattern,
+            lambda match: match.group(1) + quote(file.url, safe="/%") + match.group(2),
+            rewritten,
+            count=1,
+        )
+        if replacements != 1:
+            raise ValueError(f"Could not assign a virtual URL for {relative_path.as_posix()}")
+    return rewritten
+
+
+_FOLDER_LABELS = {
+    "library": "资料库",
+    "grammar": "正式语法卡",
+    "drafts": "草稿",
+    "quizzes": "测试",
+    "reviews": "复习记录",
+    "history": "修改历史",
+}
+_FOLDER_ORDER = {name: index for index, name in enumerate(_FOLDER_LABELS)}
+
+
+def _localize_and_sort_navigation(items, pages_by_uri: dict[str, SourcePage]) -> None:
+    """Keep the physical tree while using learner-facing labels and deterministic order."""
+    for item in items:
+        children = getattr(item, "children", None)
+        if children is not None:
+            _localize_and_sort_navigation(children, pages_by_uri)
+            item.title = _FOLDER_LABELS.get(str(item.title).casefold(), item.title)
+            children.sort(key=lambda child: _navigation_item_key(child, pages_by_uri))
+    items.sort(key=lambda item: _navigation_item_key(item, pages_by_uri))
+
+
+def _navigation_item_key(item, pages_by_uri: dict[str, SourcePage]) -> tuple[object, ...]:
+    source = pages_by_uri.get(getattr(getattr(item, "file", None), "src_uri", ""))
+    if source is not None:
+        if source.metadata.content_type == "catalog":
+            return (-1,)
+        return (1, *_source_navigation_key(source))
+    title = str(getattr(item, "title", ""))
+    folder_name = title.casefold()
+    original_folder_name = next(
+        (name for name, label in _FOLDER_LABELS.items() if label == title), folder_name
+    )
+    return (0, _FOLDER_ORDER.get(original_folder_name, len(_FOLDER_ORDER)), folder_name)
+
+
+def _source_navigation_key(source: SourcePage) -> tuple[object, ...]:
+    source_id = source.metadata.source_id or ""
+    structured = re.fullmatch(r"N([1-5])-([A-Z]+)-(\d+)", source_id, re.IGNORECASE)
+    relative = source.relative_path.as_posix()
+    if structured:
+        return (0, int(structured.group(1)), structured.group(2).casefold(), int(structured.group(3)), relative.casefold(), relative)
+    is_dated = source.metadata.content_type in {"quiz-question", "quiz-result", "review", "history"}
+    date = re.search(r"\d{4}-\d{2}-\d{2}", relative)
+    if is_dated and date:
+        return (1, -int(date.group(0).replace("-", "")), relative.casefold(), relative)
+    return (2, relative.casefold(), relative)
 
 
 _ALLOWED_TAGS = frozenset(
