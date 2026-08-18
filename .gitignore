@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 jlpt-notes/backups/*.zip
+.worktrees/
