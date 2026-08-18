@@ -441,6 +441,31 @@ def _source_navigation_key(source: SourcePage) -> tuple[object, ...]:
     return (2, relative.casefold(), relative)
 
 
+def _render_card_pager(
+    previous: tuple[str, str] | None,
+    nxt: tuple[str, str] | None,
+) -> str:
+    """Render the same-level grammar pager; empty when no neighbour exists."""
+
+    def link(side: str, label: str, target: tuple[str, str]) -> str:
+        url, title = target
+        return (
+            f'<a class="jlpt-card-pager__link jlpt-card-pager__link--{side}" '
+            f'href="{escape(url, quote=True)}">'
+            f'<span class="jlpt-card-pager__label">{label}</span>'
+            f'<span class="jlpt-card-pager__title">{escape(title)}</span></a>'
+        )
+
+    links: list[str] = []
+    if previous is not None:
+        links.append(link("prev", "← 上一张卡", previous))
+    if nxt is not None:
+        links.append(link("next", "下一张卡 →", nxt))
+    if not links:
+        return ""
+    return '<nav class="jlpt-card-pager" aria-label="语法卡翻阅">' + "".join(links) + "</nav>"
+
+
 _ALLOWED_TAGS = frozenset(
     {
         "a",
@@ -464,6 +489,7 @@ _ALLOWED_TAGS = frozenset(
         "hr",
         "kbd",
         "li",
+        "nav",
         "ol",
         "p",
         "pre",

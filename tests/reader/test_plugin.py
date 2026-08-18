@@ -10,7 +10,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 from mkdocs.commands.build import build
 from mkdocs.config import load_config
 
-from jlpt_notes.reader.plugin import _refresh_reused_generation
+from jlpt_notes.reader.plugin import _render_card_pager, _refresh_reused_generation, _sanitize_html
 
 
 class _HrefParser(HTMLParser):
@@ -483,6 +483,38 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertIn("测试", navigation)
             self.assertNotRegex(navigation, r'<span class="md-ellipsis">\s*资料库\s*</span>')
             self.assertLess(navigation.index("PAPER_NEW_SENTINEL"), navigation.index("PAPER_OLD_SENTINEL"))
+
+    def test_card_pager_render_outputs_both_sides_with_escaped_titles(self) -> None:
+        html = _render_card_pager(
+            (
+                "library/grammar/n4/N4-G-0001.md.__reader_markdown__/",
+                "N4-G-0001｜「～までに」：截止时限",
+            ),
+            (
+                "library/grammar/n4/N4-G-0003.md.__reader_markdown__/",
+                "N4-G-0003｜「～やすい」：容易 \"与\" 易发生",
+            ),
+        )
+
+        self.assertIn('<nav class="jlpt-card-pager"', html)
+        self.assertIn('class="jlpt-card-pager__link jlpt-card-pager__link--prev"', html)
+        self.assertIn('class="jlpt-card-pager__link jlpt-card-pager__link--next"', html)
+        self.assertIn("← 上一张卡", html)
+        self.assertIn("下一张卡 →", html)
+        self.assertIn('href="library/grammar/n4/N4-G-0001.md.__reader_markdown__/"', html)
+
+        cleaned = _sanitize_html(html)
+        self.assertIn('jlpt-card-pager__link--prev', cleaned)
+        self.assertIn('href="library/grammar/n4/N4-G-0001.md.__reader_markdown__/"', cleaned)
+        self.assertIn("&quot;与&quot;", cleaned)
+        self.assertNotIn("<script", cleaned)
+
+    def test_card_pager_render_hides_missing_sides_and_empty_sequence(self) -> None:
+        one_sided = _render_card_pager(None, ("library/x/", "N4-G-0002｜次"))
+
+        self.assertNotIn("jlpt-card-pager__link--prev", one_sided)
+        self.assertIn("jlpt-card-pager__link--next", one_sided)
+        self.assertEqual(_render_card_pager(None, None), "")
 
 
 if __name__ == "__main__":
