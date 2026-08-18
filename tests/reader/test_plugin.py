@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
 import unittest
+from urllib.parse import unquote, urljoin, urlsplit
 
 from mkdocs.commands.build import build
 from mkdocs.config import load_config
@@ -48,6 +49,7 @@ class _DocumentContractParser(HTMLParser):
         super().__init__()
         self.metas: list[dict[str, str | None]] = []
         self.resources: list[str] = []
+        self.page_state: dict[str, str | None] | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -55,8 +57,33 @@ class _DocumentContractParser(HTMLParser):
             self.metas.append(attributes)
         if tag == "script" and attributes.get("src"):
             self.resources.append(attributes["src"] or "")
-        if tag == "link" and attributes.get("href"):
+        link_relations = (attributes.get("rel") or "").split()
+        if tag == "link" and attributes.get("href") and set(link_relations) & {
+            "stylesheet",
+            "icon",
+            "apple-touch-icon",
+        }:
             self.resources.append(attributes["href"] or "")
+        if tag == "div" and "jlpt-page-state" in (attributes.get("class") or "").split():
+            self.page_state = attributes
+
+
+def _assert_local_resources_exist(test: unittest.TestCase, site: Path, page: Path, html: str) -> None:
+    parser = _DocumentContractParser()
+    parser.feed(html)
+    resources = list(parser.resources)
+    config_match = re.search(r'<script id="__config" type="application/json">(.*?)</script>', html)
+    test.assertIsNotNone(config_match)
+    assert config_match is not None
+    resources.append(json.loads(config_match.group(1))["search"])
+    page_url = f"https://reader.invalid/{page.relative_to(site).as_posix()}"
+    for resource in resources:
+        if resource.startswith("data:"):
+            continue
+        parsed = urlsplit(urljoin(page_url, resource))
+        test.assertEqual(parsed.netloc, "reader.invalid", resource)
+        target = site / unquote(parsed.path).lstrip("/")
+        test.assertTrue(target.is_file(), f"Missing generated resource {resource!r} -> {target}")
 
 
 def _article(html: str) -> str:
@@ -103,6 +130,23 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
 
 
 class ReaderPluginTests(unittest.TestCase):
+    def test_theme_asset_retention_does_not_reintroduce_linked_source_files(self) -> None:
+        with TemporaryDirectory() as directory, TemporaryDirectory() as outside_directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            external = Path(outside_directory) / "outside.md"
+            external.write_text("# OUTSIDE_SOURCE_SENTINEL\n", encoding="utf-8")
+            try:
+                (docs / "linked.md").symlink_to(external)
+            except OSError:
+                self.skipTest("当前环境不允许创建符号链接")
+            (docs / "kept.md").write_text("# KEPT_SOURCE_SENTINEL\n", encoding="utf-8")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            self.assertFalse((site / "linked.md").exists())
+            self.assertFalse(any("OUTSIDE_SOURCE_SENTINEL" in path.read_text(encoding="utf-8") for path in site.rglob("*.html")))
+            self.assertIn("KEPT_SOURCE_SENTINEL", _site_page_containing(site, "KEPT_SOURCE_SENTINEL"))
+
     def test_shipped_reader_theme_builds_a_private_ipad_document_contract(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         config_file = project_root / "reader/mkdocs.yml"
@@ -135,6 +179,14 @@ class ReaderPluginTests(unittest.TestCase):
                 [resource for resource in parser.resources if resource.startswith(("http://", "https://", "//"))]
             )
             self.assertIn('data-level="N3"', (site / "index.html").read_text(encoding="utf-8"))
+            self.assertIsNotNone(parser.page_state)
+            manifest = json.loads((site / "reader-version.json").read_text(encoding="utf-8"))
+            assert parser.page_state is not None
+            page_key = parser.page_state["data-page-key"] or ""
+            self.assertEqual(parser.page_state["data-page-hash"], manifest["pages"][page_key])
+            self.assertEqual(parser.page_state["data-generation"], manifest["version"])
+            page_file = next(page for page in site.rglob("index.html") if page.read_text(encoding="utf-8") == html)
+            _assert_local_resources_exist(self, site, page_file, html)
 
             reader_css = (site / "assets/reader.css").read_text(encoding="utf-8")
             reader_js = (site / "assets/reader.js").read_text(encoding="utf-8")
@@ -151,8 +203,10 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertIn('cache: "no-store"', reader_js)
             self.assertIn("未标记", reader_js)
             self.assertIn("正式语法", reader_js)
+            self.assertIn("标签", reader_js)
             self.assertNotIn("serviceWorker.register", reader_js)
-            self.assertNotRegex(reader_css + reader_js, r"https?://|fonts\.googleapis\.com")
+            self.assertNotIn("fonts.googleapis.com", reader_css + reader_js)
+            self.assertNotRegex(reader_js, r"fetch\(\s*['\"]https?://")
 
     def test_build_uses_display_title_and_does_not_copy_raw_sources(self) -> None:
         with TemporaryDirectory() as directory:

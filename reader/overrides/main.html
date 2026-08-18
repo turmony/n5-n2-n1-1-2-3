@@ -6,5 +6,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="JLPT 阅读">
-  {% if page %}<meta name="jlpt-page-key" content="{{ page.file.url }}">{% endif %}
+  {% if page %}
+    <meta name="jlpt-page-key" content="{{ page.meta.reader_page_key }}">
+    <meta name="jlpt-page-hash" content="{{ page.meta.reader_page_hash }}">
+    <meta name="jlpt-generation" content="{{ page.meta.reader_generation }}">
+  {% endif %}
 {% endblock %}

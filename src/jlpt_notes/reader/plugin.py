@@ -43,6 +43,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         return config
 
     def on_files(self, files: Files, config, **kwargs: Any) -> Files:
+        retained = [file for file in files if not _originates_below(file, self._source_root)]
         virtual: list[File] = []
         for source in self._pages:
             file = File(
@@ -83,7 +84,13 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             )
             file.content_bytes = source_path.read_bytes()
             virtual.append(file)
-        return Files(virtual)
+        self._url_hashes = {
+            file.url: self._pages_by_uri[file.src_uri].content_hash
+            for file in virtual
+            if file.src_uri in self._pages_by_uri
+        }
+        self._generation_version = _generation_version(self._url_hashes)
+        return Files([*retained, *virtual])
 
     def on_nav(self, nav, config, files, **kwargs: Any):
         for page in nav.pages:
@@ -101,11 +108,23 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             {
                 "reader_level": source.metadata.level or "",
                 "reader_type": source.metadata.content_type,
+                "reader_page_key": page.file.url,
+                "reader_page_hash": source.content_hash,
+                "reader_generation": self._generation_version,
             }
         )
         warning = f'!!! warning "读取提示"\n    {source.warning}\n\n' if source.warning else ""
         safe_title = escape(source.metadata.display_title)
-        return f"# {safe_title}\n\n{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
+        page_state = (
+            '<div class="jlpt-page-state" aria-hidden="true" '
+            f'data-page-key="{escape(page.file.url, quote=True)}" '
+            f'data-page-hash="{source.content_hash}" '
+            f'data-generation="{self._generation_version}"></div>'
+        )
+        return (
+            f"# {safe_title}\n\n{page_state}\n\n"
+            f"{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
+        )
 
     def on_page_content(self, html: str, page, **kwargs: Any) -> str:
         """Keep generated page HTML readable while removing unsafe source HTML."""
@@ -118,16 +137,27 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         return context
 
     def on_post_build(self, config, **kwargs: Any) -> None:
-        ordered = sorted(self._url_hashes.items())
-        version_source = "".join(f"{url}\0{content_hash}\n" for url, content_hash in ordered)
         manifest = {
-            "version": sha256(version_source.encode("utf-8")).hexdigest(),
-            "pages": dict(ordered),
+            "version": self._generation_version,
+            "pages": dict(sorted(self._url_hashes.items())),
         }
         (Path(config.site_dir) / "reader-version.json").write_text(
             json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
             encoding="utf-8",
         )
+
+
+def _originates_below(file: File, root: Path) -> bool:
+    """Return whether an incoming MkDocs file exposes the reader's source tree."""
+    if file.src_dir is None:
+        return False
+    return Path(file.src_dir).resolve(strict=False) == root
+
+
+def _generation_version(url_hashes: dict[str, str]) -> str:
+    ordered = sorted(url_hashes.items())
+    version_source = "".join(f"{url}\0{content_hash}\n" for url, content_hash in ordered)
+    return sha256(version_source.encode("utf-8")).hexdigest()
 
 
 class ReaderHeadingExtension(Extension):
