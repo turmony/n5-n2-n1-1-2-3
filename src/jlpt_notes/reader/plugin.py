@@ -12,7 +12,6 @@ from xml.etree import ElementTree
 
 import bleach
 from markdown.extensions import Extension
-from markdown.preprocessors import Preprocessor
 from markdown.treeprocessors import Treeprocessor
 from mkdocs import plugins
 from mkdocs.config import base, config_options as c
@@ -135,7 +134,6 @@ class ReaderHeadingExtension(Extension):
     """Demote parsed source headings before MkDocs' TOC processor assigns anchors."""
 
     def extendMarkdown(self, md) -> None:
-        md.preprocessors.register(_BlockQuoteFencedCodePreprocessor(md), "jlpt_reader_blockquote_fences", 26)
         md.treeprocessors.register(_DemoteSourceHeadingTreeprocessor(md), "jlpt_reader_headings", 6)
 
 
@@ -151,63 +149,6 @@ class _DemoteSourceHeadingTreeprocessor(Treeprocessor):
             elif element.tag in {"h2", "h3", "h4", "h5"}:
                 element.tag = f"h{int(element.tag[1]) + 1}"
         return root
-
-
-class _BlockQuoteFencedCodePreprocessor(Preprocessor):
-    """Represent nested blockquote fences as inert HTML before Markdown parses headings."""
-
-    _opening = re.compile(r"^(?P<prefix>(?: {0,3}>\s*)+)(?P<fence>`{3,}|~{3,})(?P<info>[^\r\n]*)$")
-
-    def run(self, lines: list[str]) -> list[str]:
-        output: list[str] = []
-        index = 0
-        while index < len(lines):
-            opening = self._opening.match(lines[index])
-            if opening is None or not self._valid_opening(opening):
-                output.append(lines[index])
-                index += 1
-                continue
-            block = self._collect_block(lines, index, opening)
-            if block is None:
-                output.append(lines[index])
-                index += 1
-                continue
-            placeholder, next_index = block
-            output.append(opening.group("prefix") + placeholder)
-            index = next_index
-        return output
-
-    @staticmethod
-    def _valid_opening(opening: re.Match[str]) -> bool:
-        return opening.group("fence")[0] != "`" or "`" not in opening.group("info")
-
-    def _collect_block(self, lines: list[str], index: int, opening: re.Match[str]) -> tuple[str, int] | None:
-        marker = opening.group("fence")
-        quote_depth = _blockquote_depth(opening.group("prefix"))
-        content: list[str] = []
-        for candidate_index in range(index + 1, len(lines)):
-            prefix, candidate = _split_blockquote_prefix(lines[candidate_index])
-            if _blockquote_depth(prefix) != quote_depth:
-                return None
-            if re.fullmatch(rf"{re.escape(marker[0])}{{{len(marker)},}}\s*", candidate):
-                return self._store_code_block(content, opening.group("info")), candidate_index + 1
-            content.append(candidate)
-        return None
-
-    def _store_code_block(self, content: list[str], info: str) -> str:
-        language = info.strip().split(maxsplit=1)[0] if info.strip() else ""
-        code_class = f' class="language-{escape(language, quote=True)}"' if language else ""
-        markup = f"<pre><code{code_class}>{escape(chr(10).join(content))}</code></pre>"
-        return self.md.htmlStash.store(markup)
-
-
-def _split_blockquote_prefix(line: str) -> tuple[str, str]:
-    match = re.match(r"^((?: {0,3}>\s*)+)(.*)$", line)
-    return (match.group(1), match.group(2)) if match else ("", line)
-
-
-def _blockquote_depth(prefix: str) -> int:
-    return prefix.count(">")
 
 
 class _RawH1Demoter(HTMLParser):

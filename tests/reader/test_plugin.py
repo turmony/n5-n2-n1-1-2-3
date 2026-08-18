@@ -22,8 +22,35 @@ class _HrefParser(HTMLParser):
                 self.hrefs.append(href)
 
 
+class _CodeTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.blocks: list[str] = []
+        self._code_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "code":
+            self._code_depth += 1
+            if self._code_depth == 1:
+                self.blocks.append("")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "code":
+            self._code_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if self._code_depth:
+            self.blocks[-1] += data
+
+
 def _article(html: str) -> str:
     return html.split('<article class="md-content__inner md-typeset">', 1)[1].split("</article>", 1)[0]
+
+
+def _code_texts(html: str) -> list[str]:
+    parser = _CodeTextParser()
+    parser.feed(html)
+    return parser.blocks
 
 
 def _site_article_containing(site: Path, text: str) -> str:
@@ -224,7 +251,7 @@ class ReaderPluginTests(unittest.TestCase):
                 "   # 缩进 ATX\n\nSetext\n======\n\n> # 引用标题\n\n> > # 嵌套引用标题\n\n"
                 "> 引用 Setext\n> =====\n\n"
                 '<h1 class="raw">原始 H1</h1>\n\n```markdown\n# code sample\n```\n\n'
-                "````markdown\n```\n# FENCED_SENTINEL\n```\n````\n\n    # indented code\n"
+                "````markdown\n```\n# FENCED_SENTINEL\n```\n````\n\n    # indented code\n\n"
                 "> ```markdown\n> # BLOCKQUOTE_FENCED_CODE\n> ```\n\n"
                 ">     # BLOCKQUOTE_INDENTED_CODE\n\n"
                 "inline `<h1>INLINE_CODE</h1>`\n\n"
@@ -241,11 +268,46 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertIn("# code sample", article)
             self.assertIn("# FENCED_SENTINEL", article)
             self.assertIn("# indented code", article)
-            self.assertIn('<code class="language-markdown"># BLOCKQUOTE_FENCED_CODE', article)
-            self.assertIn("<code># BLOCKQUOTE_INDENTED_CODE", article)
+            self.assertIn("# BLOCKQUOTE_FENCED_CODE\n", _code_texts(article))
+            self.assertIn("# BLOCKQUOTE_INDENTED_CODE\n", _code_texts(article))
             self.assertIn("&lt;h1&gt;INLINE_CODE&lt;/h1&gt;", article)
             self.assertIn("REAL_H1_AFTER_INVALID_FENCE", article)
             self.assertIn('href="#REAL_H1_AFTER_INVALID_FENCE"', page_html)
+
+    def test_superfences_preserves_significant_whitespace_in_blockquoted_code(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            (docs / "quoted-code.md").write_text(
+                "> ```text\n"
+                ">   TWO_SPACE_SENTINEL\n"
+                "> ```\n",
+                encoding="utf-8",
+            )
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            article = _site_article_containing(site, "TWO_SPACE_SENTINEL")
+            self.assertIn("  TWO_SPACE_SENTINEL\n", _code_texts(article))
+
+    def test_superfences_keeps_quoted_fence_example_literal_inside_longer_fence(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            (docs / "literal-fence.md").write_text(
+                "````markdown\n"
+                "> ```markdown\n"
+                "> # QUOTED_FENCE_LITERAL\n"
+                "> ```\n"
+                "````\n",
+                encoding="utf-8",
+            )
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            article = _site_article_containing(site, "QUOTED_FENCE_LITERAL")
+            self.assertIn(
+                "> ```markdown\n> # QUOTED_FENCE_LITERAL\n> ```\n",
+                _code_texts(article),
+            )
 
     def test_navigation_hoists_root_folders_and_orders_date_bearing_papers_newest_first(self) -> None:
         with TemporaryDirectory() as directory:
