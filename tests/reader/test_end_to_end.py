@@ -74,6 +74,22 @@ def _route_containing(site: Path, text: str) -> str:
 
 
 class ReaderEndToEndTests(unittest.TestCase):
+    def test_user_docs_require_one_stable_same_runtime_install_chain(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        readme = (project / "README.md").read_text(encoding="utf-8")
+        start_here = (project / "START-HERE.md").read_text(encoding="utf-8")
+        combined = readme + start_here
+
+        self.assertIn(r"D:\PersonalProject\n5-n2-n1-1-2-3", combined)
+        self.assertIn("安装阅读器（稳定目录）", combined)
+        self.assertIn("创建桌面快捷方式", combined)
+        self.assertIn("Private + LocalSubnet", combined)
+        self.assertIn("python.exe", combined)
+        self.assertIn("pythonw.exe", combined)
+        self.assertIn(".worktrees", combined)
+        self.assertIn("重新安装", combined)
+        self.assertNotIn("首次设置包含两项", combined)
+
     def test_committed_repository_build_is_strictly_read_only(self) -> None:
         project = Path(__file__).resolve().parents[2]
         notes = project / "jlpt-notes"
