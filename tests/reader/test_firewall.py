@@ -1,0 +1,152 @@
+import json
+from pathlib import Path
+import subprocess
+from tempfile import TemporaryDirectory
+import unittest
+
+from jlpt_notes.reader.firewall import (
+    FirewallConfigurationError,
+    FirewallInspectionError,
+    configure_firewall,
+    firewall_rule_present,
+)
+
+
+class ReaderFirewallTests(unittest.TestCase):
+    def test_status_query_accepts_only_the_private_local_subnet_tcp_rule(self) -> None:
+        def matching_query_runner(command, **kwargs):
+            self.assertEqual(command[:3], ["powershell.exe", "-NoProfile", "-NonInteractive"])
+            self.assertEqual(command[3], "-Command")
+            query = command[4]
+            for required in (
+                "JLPT iPad Reader (Private LAN)",
+                "Enabled -eq 'True'",
+                "Direction -eq 'Inbound'",
+                "Action -eq 'Allow'",
+                "Profile -eq 'Private'",
+                "Get-NetFirewallPortFilter",
+                "Protocol -eq 'TCP'",
+                "LocalPort -eq '8765'",
+                "Get-NetFirewallAddressFilter",
+                "@($addressFilter.RemoteAddress).Count -eq 1",
+                "RemoteAddress -contains 'LocalSubnet'",
+            ):
+                self.assertIn(required, query)
+            self.assertEqual(
+                kwargs,
+                {"capture_output": True, "text": True, "timeout": 10, "check": True},
+            )
+            return subprocess.CompletedProcess(command, 0, stdout="True\n", stderr="")
+
+        self.assertTrue(firewall_rule_present(8765, runner=matching_query_runner))
+
+    def test_status_query_returns_false_when_no_matching_rule_exists(self) -> None:
+        def no_rule_runner(command, **kwargs):
+            return subprocess.CompletedProcess(command, 0, stdout="False\n", stderr="")
+
+        self.assertFalse(firewall_rule_present(8765, runner=no_rule_runner))
+
+    def test_status_query_reports_inspection_failures(self) -> None:
+        def failing_runner(command, **kwargs):
+            raise subprocess.CalledProcessError(1, command, stderr="not permitted")
+
+        with self.assertRaisesRegex(FirewallInspectionError, "无法检查.*not permitted"):
+            firewall_rule_present(8765, runner=failing_runner)
+
+    def test_configuration_runs_only_the_explicit_resolved_script(self) -> None:
+        with TemporaryDirectory() as directory:
+            script = Path(directory) / "configure firewall.ps1"
+            script.write_text("# controlled test script\n", encoding="utf-8")
+            expected = [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script.resolve()),
+                "-Port",
+                "8765",
+            ]
+
+            def successful_runner(command, **kwargs):
+                self.assertEqual(command, expected)
+                self.assertEqual(
+                    kwargs,
+                    {"capture_output": True, "text": True, "timeout": 120, "check": False},
+                )
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+            configured = configure_firewall(script, 8765, runner=successful_runner)
+
+        self.assertTrue(configured)
+
+    def test_configuration_returns_false_when_uac_or_script_is_cancelled(self) -> None:
+        with TemporaryDirectory() as directory:
+            script = Path(directory) / "configure-firewall.ps1"
+            script.write_text("# controlled test script\n", encoding="utf-8")
+
+            def cancelled_runner(command, **kwargs):
+                return subprocess.CompletedProcess(command, 1223, stdout="", stderr="cancelled")
+
+            self.assertFalse(configure_firewall(script, 8765, runner=cancelled_runner))
+
+    def test_configuration_rejects_unsafe_input_without_starting_powershell(self) -> None:
+        def forbidden_runner(command, **kwargs):
+            self.fail("invalid configuration must not start PowerShell")
+
+        with self.assertRaisesRegex(ValueError, "1024.*65535"):
+            configure_firewall(Path("missing.ps1"), 80, runner=forbidden_runner)
+        with self.assertRaises(FileNotFoundError):
+            configure_firewall(Path("missing.ps1"), 8765, runner=forbidden_runner)
+
+    def test_configuration_reports_process_launch_failures(self) -> None:
+        with TemporaryDirectory() as directory:
+            script = Path(directory) / "configure-firewall.ps1"
+            script.write_text("# controlled test script\n", encoding="utf-8")
+
+            def unavailable_runner(command, **kwargs):
+                raise OSError("PowerShell unavailable")
+
+            with self.assertRaisesRegex(FirewallConfigurationError, "无法启动.*unavailable"):
+                configure_firewall(script, 8765, runner=unavailable_runner)
+
+    def test_script_whatif_describes_the_rule_without_touching_firewall(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        script = project / "reader" / "configure-firewall.ps1"
+        completed = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script),
+                "-Port",
+                "8765",
+                "-WhatIf",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        )
+
+        preview = json.loads(completed.stdout)
+        self.assertEqual(
+            preview,
+            {
+                "DisplayName": "JLPT iPad Reader (Private LAN)",
+                "Direction": "Inbound",
+                "Action": "Allow",
+                "Protocol": "TCP",
+                "LocalPort": 8765,
+                "Profile": "Private",
+                "RemoteAddress": "LocalSubnet",
+            },
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
