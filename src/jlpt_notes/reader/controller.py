@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 from threading import Lock, RLock
 from typing import Callable
@@ -82,14 +83,34 @@ class ReaderController:
 
         self._publish(ReaderStatus("preparing", "正在准备只读阅读器……"))
         try:
-            temporary = TemporaryDirectory(prefix="jlpt-reader-")
-            store = SiteStore(Path(temporary.name))
-            with self._lifecycle_lock:
-                self._temporary = temporary
-                self._store = store
-
-            self._publish(ReaderStatus("building", "正在生成阅读页面……"))
             with self._build_lock:
+                with self._lifecycle_lock:
+                    if self._stop_requested:
+                        return False
+                temporary = TemporaryDirectory(prefix="jlpt-reader-")
+                with self._lifecycle_lock:
+                    cancelled = self._stop_requested
+                if cancelled:
+                    temporary.cleanup()
+                    return False
+                try:
+                    store = SiteStore(Path(temporary.name))
+                except Exception:
+                    temporary.cleanup()
+                    raise
+                with self._lifecycle_lock:
+                    if self._stop_requested:
+                        cancelled = True
+                    else:
+                        cancelled = False
+                        self._temporary = temporary
+                        self._store = store
+                if cancelled:
+                    store.close()
+                    temporary.cleanup()
+                    return False
+
+                self._publish(ReaderStatus("building", "正在生成阅读页面……"))
                 result = self._next_build(store, Path(temporary.name))
             if not result.success:
                 self._publish_build_error("首次构建失败", result)
@@ -191,21 +212,34 @@ class ReaderController:
             if status.state != "running":
                 self._publish(status)
                 return False
+            with self._lifecycle_lock:
+                if self._stop_requested:
+                    return False
 
             old_server.stop()
+            replacement: ReadOnlyServer | None = None
             try:
                 replacement = ReadOnlyServer(store, "0.0.0.0", self.port)
                 replacement.start()
-            except OSError as error:
-                fallback = ReadOnlyServer(store, "127.0.0.1", self.port)
-                fallback.start()
+            except Exception as wildcard_error:
+                if replacement is not None:
+                    replacement.stop()
+                fallback: ReadOnlyServer | None = None
+                try:
+                    fallback = ReadOnlyServer(store, "127.0.0.1", self.port)
+                    fallback.start()
+                except Exception as fallback_error:
+                    if fallback is not None:
+                        fallback.stop()
+                    self._fail_closed_after_rebind(wildcard_error, fallback_error, old_server)
+                    return False
                 with self._lifecycle_lock:
                     self._server = fallback
                     self._lan_enabled = False
                 self._publish(
                     ReaderStatus(
                         "error",
-                        f"专用网络服务启动失败，已恢复本机预览：{error}",
+                        f"专用网络服务启动失败，已恢复本机预览：{wildcard_error}",
                         self._local_url(),
                     )
                 )
@@ -267,6 +301,45 @@ class ReaderController:
         status = self._inspect_network()
         self._publish(status)
         return status
+
+    def _fail_closed_after_rebind(
+        self,
+        wildcard_error: Exception,
+        fallback_error: Exception,
+        stopped_server: ReadOnlyServer,
+    ) -> None:
+        """Clean the whole session when neither LAN nor loopback can rebind."""
+        with self._lifecycle_lock:
+            self._stop_requested = True
+            watcher = self._watcher
+        if watcher is not None:
+            watcher.stop()
+        with self._build_lock:
+            with self._lifecycle_lock:
+                server = self._server
+                store = self._store
+                temporary = self._temporary
+                self._watcher = None
+                self._server = None
+                self._store = None
+                self._temporary = None
+                self._started = False
+                self._lan_enabled = False
+                self._addresses = ()
+                self._network_reason = "服务重新绑定失败"
+            if server is not None and server is not stopped_server:
+                server.stop()
+            if store is not None:
+                store.close()
+            if temporary is not None:
+                temporary.cleanup()
+        self._publish(
+            ReaderStatus(
+                "error",
+                "专用网络和本机服务均无法重新启动，阅读器已停止："
+                f"{wildcard_error}；{fallback_error}",
+            )
+        )
 
     def _next_build(self, store: SiteStore, temporary_root: Path) -> BuildResult:
         self._build_number += 1
@@ -355,6 +428,9 @@ class ReaderController:
     def _validate_start_inputs(self) -> None:
         if self.program_path.name.casefold() != "pythonw.exe":
             raise ValueError("阅读器必须由桌面快捷方式指定的 pythonw.exe 启动")
+        current_program = Path(sys.executable).resolve(strict=True)
+        if current_program.name.casefold() != "pythonw.exe" or self.program_path != current_program:
+            raise ValueError("阅读器程序必须与当前进程使用同一个 pythonw.exe")
         if not self.program_path.is_file():
             raise FileNotFoundError(f"找不到阅读器程序：{self.program_path}")
         if not self.root.is_dir():
@@ -363,6 +439,9 @@ class ReaderController:
             raise FileNotFoundError(f"找不到阅读器配置：{self.config_path}")
 
     def _publish(self, status: ReaderStatus) -> None:
+        with self._lifecycle_lock:
+            if self._stopped_published and status.state != "stopped":
+                return
         try:
             self._on_status(status)
         except Exception:

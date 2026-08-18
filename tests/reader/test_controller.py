@@ -34,8 +34,11 @@ class _FakeStore:
 
 class _FakeServer:
     instances = []
+    creation_errors = []
 
     def __init__(self, store, host: str, port: int) -> None:
+        if self.__class__.creation_errors:
+            raise self.__class__.creation_errors.pop(0)
         self.store = store
         self.host = host
         self.port = port
@@ -77,6 +80,7 @@ class ReaderControllerTests(unittest.TestCase):
         _FakeStore.instances.clear()
         _FakeStore.activation_error = None
         _FakeServer.instances.clear()
+        _FakeServer.creation_errors.clear()
         _FakeWatcher.instances.clear()
 
     def test_no_private_network_stays_local_and_reports_reason(self) -> None:
@@ -205,6 +209,70 @@ class ReaderControllerTests(unittest.TestCase):
             self.assertEqual(_FakeStore.instances[0].close_calls, 1)
             self.assertEqual(statuses[-1].state, "stopped")
 
+    def test_stop_before_temporary_publication_cleans_late_created_session(self) -> None:
+        creation_entered = Event()
+        creation_release = Event()
+        created_temporaries = []
+
+        def delayed_temporary(*args, **kwargs):
+            creation_entered.set()
+            creation_release.wait(2)
+            temporary = TemporaryDirectory(*args, **kwargs)
+            created_temporaries.append(temporary)
+            return temporary
+
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
+             patch("jlpt_notes.reader.controller.TemporaryDirectory", side_effect=delayed_temporary), \
+             patch("jlpt_notes.reader.controller.private_lan_addresses", return_value=()), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=False):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            start_worker = Thread(target=controller.start)
+            start_worker.start()
+            self.assertTrue(creation_entered.wait(1))
+            stop_worker = Thread(target=controller.stop)
+            stop_worker.start()
+
+            creation_release.set()
+            start_worker.join(2)
+            stop_worker.join(2)
+            controller.stop()
+
+            self.assertFalse(start_worker.is_alive())
+            self.assertFalse(stop_worker.is_alive())
+            self.assertEqual(len(created_temporaries), 1)
+            self.assertFalse(Path(created_temporaries[0].name).exists())
+            self.assertIsNone(controller._temporary)
+            self.assertIsNone(controller._store)
+            self.assertIsNone(controller._server)
+            self.assertIsNone(controller._watcher)
+            self.assertEqual(_FakeServer.instances, [])
+            self.assertEqual(statuses[-1].state, "stopped")
+
+    def test_completed_early_stop_cannot_be_overwritten_by_delayed_start_status(self) -> None:
+        preparing_entered = Event()
+        preparing_release = Event()
+        with self._runtime() as (root, config, program, statuses):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            original_publish = controller._publish
+
+            def delayed_publish(status):
+                if status.state == "preparing":
+                    preparing_entered.set()
+                    preparing_release.wait(2)
+                original_publish(status)
+
+            with patch.object(controller, "_publish", side_effect=delayed_publish):
+                start_worker = Thread(target=controller.start)
+                start_worker.start()
+                self.assertTrue(preparing_entered.wait(1))
+                controller.stop()
+                preparing_release.set()
+                start_worker.join(2)
+
+            self.assertFalse(start_worker.is_alive())
+            self.assertEqual([status.state for status in statuses], ["stopped"])
+
     def test_rebuild_failure_keeps_last_good_and_reports_temporary_log(self) -> None:
         with self._runtime() as (root, config, program, statuses):
             log = root.parent / "site-000002.log"
@@ -283,6 +351,38 @@ class ReaderControllerTests(unittest.TestCase):
             self.assertEqual(statuses[-1].state, "running")
             controller.stop()
 
+    def test_double_rebind_failure_fails_closed_without_advertising_lan(self) -> None:
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
+             patch(
+                 "jlpt_notes.reader.controller.private_lan_addresses",
+                 return_value=(LanAddress(7, "192.168.1.42", "Private"),),
+             ), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", side_effect=[False, True]), \
+             patch("jlpt_notes.reader.controller.configure_firewall_rule", return_value=True):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            self.assertTrue(controller.start())
+            session_path = Path(controller._temporary.name)
+            _FakeServer.creation_errors.extend(
+                [OSError("wildcard bind failed"), OSError("loopback bind failed")]
+            )
+
+            self.assertFalse(controller.configure_firewall())
+
+            self.assertEqual(len(_FakeServer.instances), 1)
+            self.assertEqual(_FakeServer.instances[0].stop_calls, 1)
+            self.assertEqual(_FakeWatcher.instances[0].stop_calls, 1)
+            self.assertEqual(_FakeStore.instances[0].close_calls, 1)
+            self.assertFalse(session_path.exists())
+            self.assertEqual(controller.urls, ())
+            self.assertIsNone(controller._server)
+            self.assertIsNone(controller._store)
+            self.assertIsNone(controller._temporary)
+            self.assertEqual(statuses[-1].state, "error")
+            self.assertIsNone(statuses[-1].url)
+            self.assertIn("已停止", statuses[-1].message)
+            controller.stop()
+
     def test_close_during_firewall_confirmation_cannot_leave_a_server_running(self) -> None:
         configuration_started = Event()
         configuration_release = Event()
@@ -334,6 +434,29 @@ class ReaderControllerTests(unittest.TestCase):
                 ReaderController(root, config, python).start()
             with self.assertRaisesRegex(ValueError, "1024.*65535"):
                 ReaderController(root, config, python.with_name("pythonw.exe"), port=80)
+
+            build.assert_not_called()
+
+    def test_controller_rejects_a_different_existing_pythonw_than_current_process(self) -> None:
+        with TemporaryDirectory() as directory, patch(
+            "jlpt_notes.reader.controller.build_site"
+        ) as build:
+            base = Path(directory)
+            root = base / "notes"
+            root.mkdir()
+            config = base / "mkdocs.yml"
+            config.write_text("site_name: test\n", encoding="utf-8")
+            current = base / "current" / "pythonw.exe"
+            supplied = base / "other" / "pythonw.exe"
+            current.parent.mkdir()
+            supplied.parent.mkdir()
+            current.write_bytes(b"current process")
+            supplied.write_bytes(b"other process")
+
+            with patch.object(sys, "executable", str(current)):
+                controller = ReaderController(root, config, supplied)
+                with self.assertRaisesRegex(ValueError, "当前.*pythonw.exe"):
+                    controller.start()
 
             build.assert_not_called()
 
@@ -421,7 +544,8 @@ class ReaderControllerTests(unittest.TestCase):
             program.parent.mkdir()
             program.write_bytes(b"test executable")
             statuses = []
-            yield root, config.resolve(), program, statuses
+            with patch.object(sys, "executable", str(program)):
+                yield root, config.resolve(), program, statuses
 
     @contextmanager
     def _patched_runtime(self, *, build_results=None, build_side_effect=None):
