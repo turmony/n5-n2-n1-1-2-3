@@ -3,6 +3,7 @@
 import argparse
 from datetime import date
 from pathlib import Path
+import sys
 
 from .analytics import aggregate_attempts, render_daily_report
 from .repository import Repository
@@ -17,12 +18,25 @@ def build_parser() -> argparse.ArgumentParser:
         command = subparsers.add_parser(name, help=help_text)
         command.add_argument("--root", default="jlpt-notes")
     subparsers.choices["report-daily"].add_argument("--limit", type=int, default=15)
+    reader = subparsers.add_parser("reader", help="open the manual iPad LAN reader")
+    reader.add_argument("--root", default="jlpt-notes")
+    reader.add_argument("--config", default="reader/mkdocs.yml")
+    reader.add_argument("--port", type=_reader_port, default=8765)
     return parser
 
 
 def main() -> int:
     """Run the command-line application."""
     args = build_parser().parse_args()
+    if args.command == "reader":
+        from .reader.launcher import run
+
+        return run(
+            root=Path(args.root),
+            config_path=Path(args.config),
+            program_path=Path(sys.executable).resolve(),
+            port=args.port,
+        )
     repo = Repository(Path(args.root))
     if args.command == "init":
         repo.init_layout()
@@ -36,3 +50,13 @@ def main() -> int:
     elif args.command == "backup":
         print(repo.create_backup(date.today()))
     return 0
+
+
+def _reader_port(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("端口必须是整数") from error
+    if not 1024 <= port <= 65535:
+        raise argparse.ArgumentTypeError("端口必须是 1024 到 65535 之间的整数")
+    return port
