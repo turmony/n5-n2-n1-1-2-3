@@ -132,11 +132,11 @@
 {"question_id": "N4-Q-0049", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["ようだ比喻／らしい典型"], "date": "2026-08-19"}
 {"question_id": "N4-Q-0050", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
 {"question_id": "N4-Q-0051", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
-{"question_id": "N4-Q-0052", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["迷惑受身"], "date": "2026-08-19"}
+{"question_id": "N4-Q-0052", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19", "note": "学习者更正：原提交串第9位误录为4，实为3"}
 {"question_id": "N4-Q-0053", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
 {"question_id": "N4-Q-0054", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
 {"question_id": "N4-Q-0055", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
-{"question_id": "N4-Q-0056", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["授受方向（てあげる）"], "date": "2026-08-19"}
+{"question_id": "N4-Q-0056", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["授受方向（てあげる）", "受身形误选"], "date": "2026-08-19", "note": "修正抄录错误：原记录为1，实际提交为3"}
 {"question_id": "N4-Q-0057", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
 {"question_id": "N4-Q-0058", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["たら／なら条件辨析"], "date": "2026-08-19"}
 {"question_id": "N4-Q-0059", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-19"}
