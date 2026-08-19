@@ -14,3 +14,11 @@ dependencies = [
 
 [project.entry-points."mkdocs.plugins"]
 jlpt_reader = "jlpt_notes.reader.plugin:JlptReaderPlugin"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "requests>=2.34.2",
+    "rich>=15.0.0",
+    "ruff>=0.16.3",
+]
