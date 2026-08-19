@@ -11,3 +11,7 @@
 7. 词汇题答错时创建待确认候选卡；未经学习者确认不得进入复习。
 
 在执行任何读写操作前，先阅读 `START-HERE.md`、资料库根目录的 `README.md` 和相应卡片的 YAML/JSON 前置元数据。
+
+## 工具约定
+
+Python 一律通过 uv 执行：`uv run python <脚本>`。本机 PATH 中没有系统 Python（只有微软商店占位符），uv 托管的解释器仅能经 `uv run` 使用，直接调用 `python`/`python3` 会报错。
