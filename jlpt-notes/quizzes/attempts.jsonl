@@ -192,3 +192,37 @@
 {"question_id": "N4-Q-0143", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0144", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["てしまう（不由自主）"], "date": "2026-08-20"}
 {"question_id": "N4-Q-0145", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0146", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0147", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0148", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0149", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0150", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0151", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0152", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0153", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["敬语：尊敬/谦让方向（ていらっしゃる）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0154", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0155", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0156", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0157", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["敬语：お～ください请求形"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0158", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["敬语：尊敬/谦让方向（お～する）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0159", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0160", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0161", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0162", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["文体：である体"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0163", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0164", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["敬语：二重敬语（いただきになり）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0165", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["敬语：させてください/させていただきます"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0166", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：连体修饰前置（ご専門の）"], "date": "2026-08-20", "submitted_order": "1423"}
+{"question_id": "N4-Q-0167", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4312"}
+{"question_id": "N4-Q-0168", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4123"}
+{"question_id": "N4-Q-0169", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：连体修饰词组作宾语"], "date": "2026-08-20", "submitted_order": "4312"}
+{"question_id": "N4-Q-0170", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2143"}
+{"question_id": "N4-Q-0171", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3124"}
+{"question_id": "N4-Q-0172", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3124"}
+{"question_id": "N4-Q-0173", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0174", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0175", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["敬语：いたする（谦让语Ⅱ）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0176", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0177", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0178", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0179", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["目的：ない形＋ように"], "date": "2026-08-20"}
