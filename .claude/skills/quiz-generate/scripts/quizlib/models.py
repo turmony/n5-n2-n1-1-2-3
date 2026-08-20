@@ -39,3 +39,34 @@ class AnswerEntry:
     option_analyses: dict = field(default_factory=dict)
     translation: str = ""
     conjugation: str = ""
+
+
+@dataclass
+class QuestionCard:
+    id: str
+    path: str = ""
+    frontmatter: dict = field(default_factory=dict)
+
+    def _get(self, key, default=None):
+        return self.frontmatter.get(key, default)
+
+    @property
+    def level(self): return self._get("level", "")
+    @property
+    def item_type(self): return self._get("item_type", "")
+    @property
+    def prompt(self): return self._get("prompt", "")
+    @property
+    def options(self): return self._get("options", {}) or {}
+    @property
+    def correct_option(self): return str(self._get("correct_option", "") or "")
+    @property
+    def translation(self): return self._get("translation", "")
+    @property
+    def tested_cards(self): return self._get("tested_cards", []) or []
+    @property
+    def recommended_order(self): return self._get("recommended_order", "")
+    @property
+    def conjugation(self): return self._get("conjugation", "")
+    @property
+    def correct_explanation(self): return self._get("correct_explanation", "")
