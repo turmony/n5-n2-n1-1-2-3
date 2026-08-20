@@ -328,3 +328,37 @@
 {"question_id": "N4-Q-0279", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0280", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["一段動詞可能形（起きる→起きられる；命令形ろ不接ます）"], "date": "2026-08-20"}
 {"question_id": "N4-Q-0281", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["より～ほうが：见到ほうが向前找より"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0282", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0283", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0284", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0285", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0286", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["ほうがいい接续：た形（寝た＋ほうがいい）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0287", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0288", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0289", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["てもいいですか请求许可（てはいけませんか反问误用）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0290", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0291", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0292", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0293", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0294", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["て形＋ばかりいる（辞书形する误接）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0295", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0296", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0297", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0298", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["非意志性自动词：風邪は自然に治る（治す他动词错位）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0299", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0300", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0301", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0302", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["排序：无效排列3412（疑似3142笔误，待确认）"], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0303", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2341"}
+{"question_id": "N4-Q-0304", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0305", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0306", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4231"}
+{"question_id": "N4-Q-0307", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3241"}
+{"question_id": "N4-Q-0308", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0309", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0310", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["すぎ接续：动词去ます（し＋ぎて）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0311", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["てはいけません禁止方向（误选许可）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0312", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["よね求共鸣（かい上对下语域误用于平辈）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0313", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0314", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0315", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
