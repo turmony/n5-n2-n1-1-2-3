@@ -40,6 +40,8 @@ description: 判定学习者的 JLPT 试卷作答并生成成绩报告。读取�
 {"question_id": "<N4-Q-XXXX>", "revision": <题卡 revision>, "item_type": "<text_grammar|sentence_composition>", "selected_option": "<选项号或语序串>", "is_correct": <true|false>, "uncertain": <true|false>, "error_tags": ["<从错因提炼的短标签>"], "date": "<YYYY-MM-DD>"}
 ```
 
+item_type 一律取题卡 frontmatter 的值；历史 attempts.jsonl 行存在 grammar_form 旧值（与题卡 text_grammar 不一致），属已知历史不一致——勿模仿也勿改写旧行。
+
 答对与不确定但答对：error_tags 为 `[]`；答错：从解析提炼 1–3 个短标签（如「形容词过去否定」「接续错误」「修饰链断裂」）。
 
 ## 第 5 步：提交

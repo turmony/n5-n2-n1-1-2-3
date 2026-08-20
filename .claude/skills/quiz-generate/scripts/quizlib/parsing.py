@@ -33,7 +33,6 @@ def parse_paper(text: str) -> Paper:
     paper = Paper(raw_text=text)
     section = "form"
     current = None
-    seen_option_lines_after_header = False
     for raw in text.splitlines():
         line = raw.rstrip()
         if line.startswith("## 答案填写区"):
@@ -52,13 +51,11 @@ def parse_paper(text: str) -> Paper:
                                     stem=m.group(2).strip())
             current.star_pos = _star_pos(current.stem)
             paper.questions.append(current)
-            seen_option_lines_after_header = False
             continue
         if current is not None:
             om = OPTION_RE.match(line)
             if om:
                 current.options[om.group(1)] = om.group(2).strip()
-                seen_option_lines_after_header = True
     return paper
 
 
@@ -117,10 +114,11 @@ def load_question_cards(quizzes_dir: Path) -> dict:
     - frontmatter 损坏的卡也登记（fm 用空 dict、id 取文件名 stem），
       保证重复/接缝检查仍覆盖它；损坏原因由 load_question_card_errors 单独报。
     - 同 id 再次出现（不同文件）时，后一个文件覆盖 cards[cid]，
-      并把该 id 追加进特殊键 "__duplicates__"（value 为 list[str]），
-      由 C1 报「题卡 id 重复」——拦截卷三/卷四 ID 覆盖冲突类事故。
+      并把 (cid, [涉事文件名…]) 追加进特殊键 "__duplicates__"，
+      由 C1 报「题卡 id 重复」并点名涉事文件——拦截卷三/卷四 ID 覆盖冲突类事故。
     """
     cards: dict = {}
+    files_by_id: dict[str, list[str]] = {}
     for p in sorted((quizzes_dir / "questions").glob("*.md")):
         try:
             fm = extract_frontmatter(p.read_text(encoding="utf-8"))
@@ -128,11 +126,14 @@ def load_question_cards(quizzes_dir: Path) -> dict:
             fm = None
         cid = str((fm or {}).get("id") or p.stem)
         card = QuestionCard(id=cid, path=str(p), frontmatter=fm or {})
+        files_by_id.setdefault(cid, []).append(p.name)
         if cid in cards:
             cards[cid] = card
-            cards.setdefault("__duplicates__", []).append(cid)
         else:
             cards[cid] = card
+    for cid, names in files_by_id.items():
+        if len(names) > 1:
+            cards.setdefault("__duplicates__", []).append((cid, names))
     return cards
 
 

@@ -41,6 +41,9 @@ def test_c1_duplicate_id(env_basic, mutate):
     answers, cards, _ = _env(env_basic)
     findings = check_card_ids(answers, cards, "N4")
     assert any(f.check == "C1" and f.severity == "error" and "重复" in f.message for f in findings)
+    # C1 消息须点名两个涉事文件，方便直接定位冲突
+    assert any(f.check == "C1" and "N4-Q-0002.md" in f.message and "N4-Q-0004.md" in f.message
+               for f in findings)
 
 
 def test_c1_new_ids_not_consecutive(env_basic, mutate):
@@ -156,6 +159,17 @@ def test_c2_star_position_mismatch(env_basic, mutate):
     answers, cards, _ = _env(env_basic)
     findings = check_order_invariants(_paper(env_basic), answers, cards)
     assert any(f.check == "C2" and "★" in f.message for f in findings)
+
+
+def test_c2_star_position_out_of_range(env_basic, mutate):
+    # 排序题干改成 5 个空位（＿＿ ＿＿ ＿＿ ＿＿ ★）：star_pos=5 越界，
+    # 必须报 C2 Finding 而非抛 IndexError
+    mutate(env_basic, NEW_PAPER,
+           "去年の夏、湖水旅行で、＿＿ ★ ＿＿ ＿＿ ことがあります。",
+           "去年の夏、湖水旅行で、＿＿ ＿＿ ＿＿ ＿＿ ★ ことがあります。")
+    answers, cards, _ = _env(env_basic)
+    findings = check_order_invariants(_paper(env_basic), answers, cards)
+    assert any(f.check == "C2" and "超出" in f.message and "5" in f.message for f in findings)
 
 
 def test_c3_clean_env_passes(env_basic):

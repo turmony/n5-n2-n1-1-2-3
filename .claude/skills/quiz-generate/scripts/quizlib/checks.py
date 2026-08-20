@@ -21,8 +21,9 @@ def check_card_ids(answers: list[AnswerEntry], cards: dict, level: str,
                    quizzes_dir=None) -> list[Finding]:
     findings = []
     if "__duplicates__" in cards:
-        for cid in cards["__duplicates__"]:
-            findings.append(Finding("C1", ERROR, cid, "题卡 id 重复：存在多个同名 id 文件"))
+        for cid, names in cards["__duplicates__"]:
+            findings.append(Finding("C1", ERROR, cid,
+                                    f"题卡 id 重复：{cid}（{'、'.join(names)}）"))
     if quizzes_dir is not None:
         for name, why in load_question_card_errors(quizzes_dir):
             findings.append(Finding("C1", ERROR, name, f"frontmatter 无效：{why}"))
@@ -118,6 +119,11 @@ def check_order_invariants(paper, answers, cards) -> list[Finding]:
             continue
         if q.star_pos is None:
             findings.append(Finding("C2", ERROR, loc, "试卷排序题缺 ★ 标记"))
+        elif not 1 <= q.star_pos <= 4:
+            # 题干 ＿＿/★ 数与 4 语块不匹配（如 5 空位）时 star_pos 可能越界，
+            # 防护后报告而非抛 IndexError
+            findings.append(Finding("C2", ERROR, loc,
+                                    f"★ 位（第{q.star_pos}空）超出 1–4"))
         else:
             expected = order[q.star_pos - 1]
             if e.correct_option and e.correct_option != expected:
