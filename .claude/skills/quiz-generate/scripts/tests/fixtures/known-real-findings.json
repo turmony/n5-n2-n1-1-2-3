@@ -1,0 +1,18 @@
+{
+  "2026-08-19-n4-coverage-test-1": [
+    {"check": "C3", "message_contains": ["试卷题干未出现在题卡 prompt 中"]}
+  ],
+  "2026-08-20-n4-coverage-test-3": [
+    {"check": "C3", "message_contains": ["翻译不一致：题卡与答案文件不同"]}
+  ],
+  "2026-08-20-n4-coverage-test-4": [
+    {"check": "C2", "message_contains": ["★ 位（第2空）语序数字为 1，但正确项写 3"]},
+    {"check": "C2", "message_contains": ["★ 位（第3空）语序数字为 1，但正确项写 4"]}
+  ],
+  "2026-08-20-n4-coverage-test-5": [
+    {"check": "C3", "message_contains": ["翻译不一致：题卡与答案文件不同"]}
+  ],
+  "2026-08-20-n4-coverage-test-6": [
+    {"check": "C3", "message_contains": ["翻译不一致：题卡与答案文件不同"]}
+  ]
+}

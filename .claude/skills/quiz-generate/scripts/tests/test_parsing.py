@@ -42,6 +42,15 @@ def test_parse_paper_ignores_answer_sheet_area(env_basic):
     assert len(paper.questions) == 4  # 答案填写区里的 "1-, 2-" 不算题目
 
 
+def test_parse_paper_h2_interlude_stops_option_ingestion(env_basic):
+    # 真实卷格式：第一部分与第二部分之间有「排序规则速览」H2 插页，其 1.～3.
+    # 编号行不是上一题（第 2 题）的选项，也不得计入题量/选项数
+    paper = parse_paper(_paper_text(env_basic))
+    assert len(paper.questions) == 4
+    q2 = paper.questions[1]
+    assert q2.options == {"1": "見て", "2": "見ます", "3": "見た", "4": "見る"}
+
+
 def test_parse_answers_fields(env_basic):
     entries = parse_answers(_answers_text(env_basic))
     assert len(entries) == 4

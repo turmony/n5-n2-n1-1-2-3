@@ -36,12 +36,16 @@ def parse_paper(text: str) -> Paper:
     seen_option_lines_after_header = False
     for raw in text.splitlines():
         line = raw.rstrip()
-        m = SECTION_RE.match(line)
-        if m:
-            section = _SECTION_NAMES[m.group(1)]
-            continue
         if line.startswith("## 答案填写区"):
             break
+        if line.startswith("## "):
+            # 任何 H2 边界（部分标题、真实卷的「排序规则速览」等插页）都终结
+            # 上一题的选项归集：规则速览的 1.～7. 编号行不是上一题的选项
+            m = SECTION_RE.match(line)
+            if m:
+                section = _SECTION_NAMES[m.group(1)]
+            current = None
+            continue
         m = QUESTION_HEADER_RE.match(line)
         if m and not OPTION_RE.match(line):
             current = PaperQuestion(number=int(m.group(1)), section=section,

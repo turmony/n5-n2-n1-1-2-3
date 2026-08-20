@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from quizlib.models import AnswerEntry
 from quizlib.parsing import load_question_cards, load_grammar_ids, parse_answers, parse_paper
 from quizlib.checks import (check_answer_completeness, check_card_ids, check_consistency,
                             check_duplicates, check_grammar_refs, check_order_invariants,
@@ -79,6 +80,27 @@ def test_c1_seam_ignores_malformed_card_ids(env_basic):
     answers, cards, _ = _env(env_basic)
     assert "N4-Q-0002-bak" in cards
     assert check_card_ids(answers, cards, "N4") == []
+
+
+def test_c1_seam_historical_paper_no_false_positive(env_basic):
+    # 历史卷回溯校验（真实六卷 smoke 暴露的误报）：题库已含后续卷次的
+    # 更大号卡（0003-0006）时，校验更早的卷零（新卡 0001-0002）不得按
+    # 全库最大号 0006 报「未接续既有最大号」——应按前段（更小号侧）无缝校验
+    cards = load_question_cards(env_basic / "jlpt-notes/quizzes")
+    answers = parse_answers((env_basic / "jlpt-notes/quizzes/answers/"
+                             "2026-01-01-n4-coverage-test-0-answers.md").read_text(encoding="utf-8"))
+    assert {e.card_id for e in answers} == {"N4-Q-0001", "N4-Q-0002"}
+    assert check_card_ids(answers, cards, "N4") == []
+
+
+def test_c1_seam_historical_block_must_stay_contiguous(env_basic):
+    # 历史卷免查「全库最大号」，但块自身仍须连续：卷零引用夹在后续卷次
+    # 号段之间的 0002 与 0004（上方仍有 0005/0006 更晚的卡）→ 断号必须报
+    cards = load_question_cards(env_basic / "jlpt-notes/quizzes")
+    answers = [AnswerEntry(number=1, card_id="N4-Q-0002"),
+               AnswerEntry(number=2, card_id="N4-Q-0004")]
+    findings = check_card_ids(answers, cards, "N4")
+    assert any(f.check == "C1" and "连续" in f.message for f in findings)
 
 
 def test_c4_missing_grammar_ref(env_basic, mutate):

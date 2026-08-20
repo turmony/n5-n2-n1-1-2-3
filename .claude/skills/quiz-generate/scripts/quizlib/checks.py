@@ -47,20 +47,27 @@ def check_card_ids(answers: list[AnswerEntry], cards: dict, level: str,
         if card.item_type == "sentence_composition" and not card.recommended_order:
             findings.append(Finding("C1", ERROR, f"题{e.number}",
                                     f"排序题卡 {e.card_id} 缺 recommended_order"))
-    # 新卡段接缝：新卡号必须整体大于旧卡号且自身连续
+    # 新卡段接缝：新卡号必须整体大于旧卡号且自身连续。
+    # 「未接续既有最大号」只对最新卷成立——历史卷（题库中已存在号段更大的
+    # 后续卷次题卡，如回溯校验卷一～卷五时全库最大号是卷六的 0315）按此
+    # 规则必误报；且号段历史性断号是合法的（库里 N4-Q-0088～0111 从未发放），
+    # 故历史卷只保留块自身连续性校验
     new_ids = [e.card_id for e in answers if e.card_id in cards]
     prefix = f"{level}-Q-"
     # 数值比较只纳入格式合法的 id（畸形 id——如坏卡退回的 stem——由上方格式检查
     # 与 frontmatter 检查负责报告），避免 int() 抛 ValueError 使校验器崩溃
     same_level = [cid for cid in cards if CARD_ID_RE.match(cid) and cid.startswith(prefix)]
     new_set = set(new_ids)
-    old_max = max((_numeric(c) for c in same_level if c not in new_set), default=0)
+    other_nums = [_numeric(c) for c in same_level if c not in new_set]
     nums = sorted(_numeric(c) for c in set(new_ids)
                   if CARD_ID_RE.match(c) and c.startswith(prefix))
     if nums:
-        if nums[0] <= old_max:
-            findings.append(Finding("C1", ERROR, new_ids[0],
-                                    f"新题卡号 {new_ids[0]} 未接续既有最大号（>{old_max:04d}）"))
+        has_later_cards = any(n > nums[-1] for n in other_nums)
+        if not has_later_cards:
+            old_max = max(other_nums, default=0)
+            if nums[0] <= old_max:
+                findings.append(Finding("C1", ERROR, new_ids[0],
+                                        f"新题卡号 {new_ids[0]} 未接续既有最大号（>{old_max:04d}）"))
         if nums != list(range(nums[0], nums[0] + len(nums))):
             findings.append(Finding("C1", ERROR, prefix + str(nums[0]),
                                     f"新题卡号不连续：{nums}"))
