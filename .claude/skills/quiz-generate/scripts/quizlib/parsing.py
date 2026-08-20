@@ -85,6 +85,7 @@ def parse_answers(text: str) -> list[AnswerEntry]:
             elif key == "正确项":
                 cm = CORRECT_RE.match(value)
                 current.correct_option = cm.group(1) if cm else ""
+                current.correct_option_text = value
             elif key == "正确接续":
                 current.conjugation = value
             elif key == "解析":

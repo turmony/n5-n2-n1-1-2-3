@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from quizlib.parsing import load_question_cards, load_grammar_ids, parse_answers
-from quizlib.checks import check_card_ids, check_grammar_refs
+from quizlib.parsing import load_question_cards, load_grammar_ids, parse_answers, parse_paper
+from quizlib.checks import check_card_ids, check_grammar_refs, check_order_invariants, check_consistency
 
 NEW_ANSWERS = "jlpt-notes/quizzes/answers/2026-01-02-n4-coverage-test-1-answers.md"
+NEW_PAPER = "jlpt-notes/quizzes/papers/2026-01-02-n4-coverage-test-1.md"
 
 
 def _env(env_basic):
@@ -88,3 +89,81 @@ def test_c4_missing_grammar_ref(env_basic, mutate):
 def test_c4_clean_env_passes(env_basic):
     answers, _, grammar = _env(env_basic)
     assert check_grammar_refs(answers, grammar, "N4") == []
+
+
+def _paper(env_basic):
+    return parse_paper((env_basic / NEW_PAPER).read_text(encoding="utf-8"))
+
+
+def test_c2_clean_env_passes(env_basic):
+    answers, cards, _ = _env(env_basic)
+    assert check_order_invariants(_paper(env_basic), answers, cards) == []
+
+
+def test_c2_invalid_permutation(env_basic, mutate):
+    # 语序 3142 → 3112：不是 1-4 的排列
+    mutate(env_basic, NEW_ANSWERS, "**推荐语序**：3142", "**推荐语序**：3112")
+    answers, cards, _ = _env(env_basic)
+    findings = check_order_invariants(_paper(env_basic), answers, cards)
+    assert any(f.check == "C2" and "排列" in f.message for f in findings)
+
+
+def test_c2_digit_typo_breaks_block_numbering(env_basic, mutate):
+    # 语序 3142 → 3412（仍是合法排列）——解析文字块编号仍是 3,1,4,2 → 不一致
+    mutate(env_basic, NEW_ANSWERS, "**推荐语序**：3142", "**推荐语序**：3412")
+    answers, cards, _ = _env(env_basic)
+    findings = check_order_invariants(_paper(env_basic), answers, cards)
+    assert any(f.check == "C2" and "编号" in f.message for f in findings)
+
+
+def test_c2_card_answers_order_disagree(env_basic, mutate):
+    mutate(env_basic, "jlpt-notes/quizzes/questions/N4-Q-0005.md",
+           '"recommended_order": "3142"', '"recommended_order": "3412"')
+    answers, cards, _ = _env(env_basic)
+    findings = check_order_invariants(_paper(env_basic), answers, cards)
+    assert any(f.check == "C2" and "题卡" in f.message and "语序" in f.message for f in findings)
+
+
+def test_c2_star_position_mismatch(env_basic, mutate):
+    # ★ 放到第 3 空：正确项应变成语序第 3 位"4"，但答案仍写 1
+    mutate(env_basic, NEW_PAPER,
+           "去年の夏、湖水旅行で、＿＿ ★ ＿＿ ＿＿ ことがあります。",
+           "去年の夏、湖水旅行で、＿＿ ＿＿ ★ ＿＿ ことがあります。")
+    answers, cards, _ = _env(env_basic)
+    findings = check_order_invariants(_paper(env_basic), answers, cards)
+    assert any(f.check == "C2" and "★" in f.message for f in findings)
+
+
+def test_c3_clean_env_passes(env_basic):
+    answers, cards, _ = _env(env_basic)
+    assert check_consistency(_paper(env_basic), answers, cards) == []
+
+
+def test_c3_correct_option_disagreement(env_basic, mutate):
+    mutate(env_basic, "jlpt-notes/quizzes/questions/N4-Q-0004.md",
+           '"correct_option": "4"', '"correct_option": "1"')
+    answers, cards, _ = _env(env_basic)
+    findings = check_consistency(_paper(env_basic), answers, cards)
+    assert any(f.check == "C3" and "正确项" in f.message for f in findings)
+
+
+def test_c3_option_text_drift(env_basic, mutate):
+    mutate(env_basic, NEW_PAPER, "2. 見ます", "2. 見ません")
+    answers, cards, _ = _env(env_basic)
+    findings = check_consistency(_paper(env_basic), answers, cards)
+    assert any(f.check == "C3" and "选项" in f.message for f in findings)
+
+
+def test_c3_translation_disagreement(env_basic, mutate):
+    mutate(env_basic, NEW_ANSWERS, "**翻译**：天气好的日子", "**翻译**：天气好的日子里")
+    answers, cards, _ = _env(env_basic)
+    findings = check_consistency(_paper(env_basic), answers, cards)
+    assert any(f.check == "C3" and "翻译" in f.message for f in findings)
+
+
+def test_c3_tested_cards_disagreement(env_basic, mutate):
+    mutate(env_basic, NEW_ANSWERS,
+           "**考点**：N4-G-0003「～ことができます」", "**考点**：N4-G-0002「～ことができます」")
+    answers, cards, _ = _env(env_basic)
+    findings = check_consistency(_paper(env_basic), answers, cards)
+    assert any(f.check == "C3" and "考点" in f.message for f in findings)

@@ -34,6 +34,7 @@ class AnswerEntry:
     stem: str = ""
     grammar_ids: list = field(default_factory=list)
     correct_option: str = ""
+    correct_option_text: str = ""  # 正确项字段全文，如 "1（運転する）"
     order: str | None = None
     analysis: str = ""
     option_analyses: dict = field(default_factory=dict)
