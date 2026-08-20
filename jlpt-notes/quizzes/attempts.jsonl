@@ -248,7 +248,7 @@
 {"question_id": "N4-Q-0199", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0200", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：副词紧贴＋と贴思います"], "date": "2026-08-20", "submitted_order": "1324"}
 {"question_id": "N4-Q-0201", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2341"}
-{"question_id": "N4-Q-0202", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：语序无效（重复语块）"], "date": "2026-08-20", "submitted_order": "2441"}
+{"question_id": "N4-Q-0202", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2413"}
 {"question_id": "N4-Q-0203", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4132"}
 {"question_id": "N4-Q-0204", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：期限状语先于数量词"], "date": "2026-08-20", "submitted_order": "3412"}
 {"question_id": "N4-Q-0205", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：连体修饰贴名词"], "date": "2026-08-20", "submitted_order": "2134"}
