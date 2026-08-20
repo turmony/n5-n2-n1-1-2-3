@@ -1,4 +1,5 @@
 import re
+from difflib import SequenceMatcher
 
 from .models import AnswerEntry, ERROR, Finding, QuestionCard, WARN
 from .parsing import load_question_card_errors
@@ -165,4 +166,80 @@ def check_consistency(paper, answers, cards) -> list[Finding]:
             if pt and norm(pt) != norm(text):
                 findings.append(Finding("C3", WARN, loc,
                     f"正确项 {opt} 文字「{text}」与试卷选项「{pt}」不同"))
+    return findings
+
+
+def check_structure(paper, expected=(20, 7, 7)) -> list[Finding]:
+    findings = []
+    sections = {"form": [], "order": [], "cloze": []}
+    for q in paper.questions:
+        sections.setdefault(q.section, []).append(q.number)
+        if len(q.options) != 4:
+            findings.append(Finding("C5", ERROR, f"题{q.number}",
+                                    f"选项数≠4（{len(q.options)}）"))
+    for sec, want in zip(("form", "order", "cloze"), expected):
+        got = len(sections.get(sec, []))
+        if got != want:
+            findings.append(Finding("C5", ERROR, sec,
+                                    f"{sec} 题量 {got} ≠ 预期 {want}"))
+    numbers = sorted(q.number for q in paper.questions)
+    if numbers != list(range(1, len(numbers) + 1)):
+        findings.append(Finding("C5", ERROR, "试卷",
+                                f"题号不连续：{numbers}"))
+    return findings
+
+
+def check_answer_completeness(paper, answers) -> list[Finding]:
+    findings = []
+    paper_numbers = {q.number for q in paper.questions}
+    answer_numbers = {e.number for e in answers}
+    for n in sorted(paper_numbers - answer_numbers):
+        findings.append(Finding("C7", ERROR, f"题{n}", f"答案文件缺第{n}题条目"))
+    for n in sorted(answer_numbers - paper_numbers):
+        findings.append(Finding("C7", ERROR, f"题{n}", f"答案文件多出试卷没有的第{n}题"))
+    for e in answers:
+        loc = f"题{e.number}"
+        if e.number not in paper_numbers:
+            continue
+        if not e.correct_option:
+            findings.append(Finding("C7", ERROR, loc, "缺正确项"))
+        if not e.translation:
+            findings.append(Finding("C7", ERROR, loc, "缺翻译"))
+        if not e.conjugation:
+            findings.append(Finding("C7", ERROR, loc, "缺正确接续"))
+        if not e.analysis:
+            findings.append(Finding("C7", ERROR, loc, "缺解析"))
+        if len(e.option_analyses) < 3:
+            findings.append(Finding("C7", ERROR, loc,
+                                    f"选项解析不足 3 项（{len(e.option_analyses)}）"))
+        if not e.grammar_ids:
+            findings.append(Finding("C7", ERROR, loc, "缺考点"))
+    return findings
+
+
+def check_duplicates(answers, cards, similarity_threshold=0.85) -> list[Finding]:
+    findings = []
+    new_ids = [e.card_id for e in answers]
+    new_set = set(new_ids)
+    for cid in sorted(new_set):
+        card = cards.get(cid)
+        if card is None or not card.prompt:
+            continue
+        a = norm(card.prompt)
+        for other_id, other in cards.items():
+            if other_id == cid or other_id == "__duplicates__":
+                continue
+            b = norm(other.prompt)
+            if not b:
+                continue
+            if a == b:
+                findings.append(Finding("C6", ERROR, cid,
+                                        f"题干与既有题卡 {other_id} 完全重复"))
+                continue
+            if other_id in new_set:
+                continue  # 新卡之间只报精确重复，避免整卷相似误报
+            ratio = SequenceMatcher(None, a, b).ratio()
+            if ratio >= similarity_threshold:
+                findings.append(Finding("C6", WARN, cid,
+                                        f"题干与既有题卡 {other_id} 相似度 {ratio:.2f}，需盲测复核"))
     return findings

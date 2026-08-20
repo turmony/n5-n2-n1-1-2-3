@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from quizlib.parsing import load_question_cards, load_grammar_ids, parse_answers, parse_paper
-from quizlib.checks import check_card_ids, check_grammar_refs, check_order_invariants, check_consistency
+from quizlib.checks import (check_answer_completeness, check_card_ids, check_consistency,
+                            check_duplicates, check_grammar_refs, check_order_invariants,
+                            check_structure)
 
 NEW_ANSWERS = "jlpt-notes/quizzes/answers/2026-01-02-n4-coverage-test-1-answers.md"
 NEW_PAPER = "jlpt-notes/quizzes/papers/2026-01-02-n4-coverage-test-1.md"
@@ -167,3 +169,60 @@ def test_c3_tested_cards_disagreement(env_basic, mutate):
     answers, cards, _ = _env(env_basic)
     findings = check_consistency(_paper(env_basic), answers, cards)
     assert any(f.check == "C3" and "考点" in f.message for f in findings)
+
+
+def test_c5_clean_mini_env_passes(env_basic):
+    assert check_structure(_paper(env_basic), expected=(2, 1, 1)) == []
+
+
+def test_c5_missing_question(env_basic, mutate):
+    mutate(env_basic, NEW_PAPER, "### 2. 天気のいい日には", "### 3. 天気のいい日には")
+    findings = check_structure(_paper(env_basic), expected=(2, 1, 1))
+    assert any(f.check == "C5" and "连续" in f.message for f in findings)
+
+
+def test_c5_wrong_section_count(env_basic, mutate):
+    mutate(env_basic, NEW_PAPER, "3. 演奏してもいい\n4. 演奏しなくてもいい\n", "")
+    # 第 4 题选项只剩 2 个 → C5 选项数检查
+    findings = check_structure(_paper(env_basic), expected=(2, 1, 1))
+    assert any(f.check == "C5" and "选项" in f.message for f in findings)
+
+
+def test_c7_clean_env_passes(env_basic):
+    answers, _, _ = _env(env_basic)
+    assert check_answer_completeness(_paper(env_basic), answers) == []
+
+
+def test_c7_missing_question_in_answers(env_basic, mutate):
+    mutate(env_basic, NEW_ANSWERS, "### 第 4 题（N4-Q-0006）", "### 第 5 题（N4-Q-0006）")
+    answers, _, _ = _env(env_basic)
+    findings = check_answer_completeness(_paper(env_basic), answers)
+    assert any(f.check == "C7" and "4" in f.message for f in findings)
+
+
+def test_c7_option_analysis_missing(env_basic, mutate):
+    mutate(env_basic, NEW_ANSWERS,
+           "- 选项 4（演奏しなくてもいい）：可以不演奏，语义不合。\n", "")
+    answers, _, _ = _env(env_basic)
+    findings = check_answer_completeness(_paper(env_basic), answers)
+    assert any(f.check == "C7" and "选项解析" in f.message for f in findings)
+
+
+def test_c6_exact_duplicate_prompt(env_basic, mutate):
+    # 把新卡 N4-Q-0003 的 prompt 换成旧库 N4-Q-0001 的题干 → 精确重复
+    mutate(env_basic, "jlpt-notes/quizzes/questions/N4-Q-0003.md",
+           "何回も説明した（　）、彼はまだ分かっていない。",
+           "図書館は（　）ので、勉強に集中できます。")
+    answers, cards, _ = _env(env_basic)
+    findings = check_duplicates(answers, cards)
+    assert any(f.check == "C6" and f.severity == "error" and "重复" in f.message for f in findings)
+
+
+def test_c6_similar_prompt_warns(env_basic, mutate):
+    # 新卡题干换成旧库 N4-Q-0001 题干的近似副本（句尾多一个「よ」）→ 相似度告警但不报错误
+    mutate(env_basic, "jlpt-notes/quizzes/questions/N4-Q-0003.md",
+           "何回も説明した（　）、彼はまだ分かっていない。",
+           "図書館は（　）ので、勉強に集中できますよ。")
+    answers, cards, _ = _env(env_basic)
+    findings = check_duplicates(answers, cards)
+    assert any(f.check == "C6" and f.severity == "warn" for f in findings)
