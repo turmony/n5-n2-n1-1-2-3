@@ -260,3 +260,37 @@
 {"question_id": "N4-Q-0211", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0212", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0213", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["比喻ように／そうに"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0214", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0215", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0216", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["条件と／たら：たら须接た形（飲む＋たら不成立）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0217", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["〜といい建议句形（がいい不成立）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0218", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0219", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0220", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0221", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0222", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["の／こと：句末定义句（趣味は～ことです）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0223", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0224", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0225", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["でしょうか礼貌提问（かどうか不能独立收尾）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0226", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0227", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0228", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0229", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0230", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0231", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0232", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0233", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0234", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3214"}
+{"question_id": "N4-Q-0235", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["排序：连体修饰链（どんな＋小さな＋ことでも不可拆）"], "date": "2026-08-20", "submitted_order": "1243"}
+{"question_id": "N4-Q-0236", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["排序：头名词前的修饰链顺序（という＋手作り＋和菓子の→店）"], "date": "2026-08-20", "submitted_order": "2314"}
+{"question_id": "N4-Q-0237", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["排序：て＋みたら链条不可拆"], "date": "2026-08-20", "submitted_order": "3421"}
+{"question_id": "N4-Q-0238", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3124"}
+{"question_id": "N4-Q-0239", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0240", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4312"}
+{"question_id": "N4-Q-0241", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0242", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0243", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0244", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["と／なら：恒常规律用と"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0245", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0246", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0247", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
