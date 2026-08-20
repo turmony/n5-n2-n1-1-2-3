@@ -1201,8 +1201,8 @@ def test_c5_missing_question(env_basic, mutate):
 
 
 def test_c5_wrong_section_count(env_basic, mutate):
-    mutate(env_basic, NEW_PAPER, "#### 4.\n", "#### 4.\n1. 演奏してはいけない\n2. 演奏したことがある\n")
-    # 选项只剩 2 个 → C5 选项数检查
+    mutate(env_basic, NEW_PAPER, "3. 演奏してもいい\n4. 演奏しなくてもいい\n", "")
+    # 第 4 题选项只剩 2 个 → C5 选项数检查
     findings = check_structure(_paper(env_basic), expected=(2, 1, 1))
     assert any(f.check == "C5" and "选项" in f.message for f in findings)
 
@@ -1238,9 +1238,10 @@ def test_c6_exact_duplicate_prompt(env_basic, mutate):
 
 
 def test_c6_similar_prompt_warns(env_basic, mutate):
+    # 新卡题干换成旧库 N4-Q-0001 题干的近似副本（句尾多一个「よ」）→ 相似度告警但不报错误
     mutate(env_basic, "jlpt-notes/quizzes/questions/N4-Q-0003.md",
            "何回も説明した（　）、彼はまだ分かっていない。",
-           "何回も説明した（　）、彼はまだ分かっていません。")
+           "図書館は（　）ので、勉強に集中できますよ。")
     answers, cards, _ = _env(env_basic)
     findings = check_duplicates(answers, cards)
     assert any(f.check == "C6" and f.severity == "warn" for f in findings)
