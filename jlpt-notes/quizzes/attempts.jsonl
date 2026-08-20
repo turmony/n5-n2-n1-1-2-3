@@ -226,3 +226,37 @@
 {"question_id": "N4-Q-0177", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0178", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
 {"question_id": "N4-Q-0179", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["目的：ない形＋ように"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0180", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0181", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0182", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0183", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0184", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["ように言います（指示转述）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0185", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["だ接续：名词＋だ＋と思います"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0186", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0187", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0188", "revision": 1, "item_type": "grammar_form", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["たがる／ほしがる分工"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0189", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0190", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0191", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0192", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0193", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["だ接续：な形容詞词干＋だろう"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0194", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["だ接续：な形容詞＋だそうです"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0195", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0196", "revision": 1, "item_type": "grammar_form", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["だ接续：名词＋らしい不加だ"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0197", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0198", "revision": 1, "item_type": "grammar_form", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0199", "revision": 1, "item_type": "grammar_form", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0200", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：副词紧贴＋と贴思います"], "date": "2026-08-20", "submitted_order": "1324"}
+{"question_id": "N4-Q-0201", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2341"}
+{"question_id": "N4-Q-0202", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：语序无效（重复语块）"], "date": "2026-08-20", "submitted_order": "2441"}
+{"question_id": "N4-Q-0203", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "4132"}
+{"question_id": "N4-Q-0204", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：期限状语先于数量词"], "date": "2026-08-20", "submitted_order": "3412"}
+{"question_id": "N4-Q-0205", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["句子排序：连体修饰贴名词"], "date": "2026-08-20", "submitted_order": "2134"}
+{"question_id": "N4-Q-0206", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20", "submitted_order": "2341"}
+{"question_id": "N4-Q-0207", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0208", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0209", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["意向形变形（開く→開こう）"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0210", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["みたい／そうで辨析"], "date": "2026-08-20"}
+{"question_id": "N4-Q-0211", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0212", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-20"}
+{"question_id": "N4-Q-0213", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["比喻ように／そうに"], "date": "2026-08-20"}
