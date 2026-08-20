@@ -59,6 +59,25 @@ def test_c1_new_ids_must_come_after_existing(env_basic, mutate):
     assert any(f.check == "C1" for f in findings)
 
 
+def test_c1_new_ids_below_existing_max(env_basic, mutate):
+    # 新卡段引用既有旧号 0002（题卡文件不动）：new_set={0002,0003,0005,0006}、
+    # old_max=0004=4、nums[0]=2≤4 → 精确触发「未接续既有最大号」分支
+    mutate(env_basic, NEW_ANSWERS, "N4-Q-0004）", "N4-Q-0002）")
+    answers, cards, _ = _env(env_basic)
+    findings = check_card_ids(answers, cards, "N4")
+    assert any(f.check == "C1" and "未接续" in f.message for f in findings)
+
+
+def test_c1_seam_ignores_malformed_card_ids(env_basic):
+    # 题库混入 frontmatter 损坏、stem 尾部非数字的卡（如手工备份文件）时，
+    # 数值比较不得崩溃：畸形 id 不参与接缝计算，也不产生误报
+    (env_basic / "jlpt-notes/quizzes/questions/N4-Q-0002-bak.md").write_text(
+        "（损坏的备份卡，无 frontmatter）\n", encoding="utf-8")
+    answers, cards, _ = _env(env_basic)
+    assert "N4-Q-0002-bak" in cards
+    assert check_card_ids(answers, cards, "N4") == []
+
+
 def test_c4_missing_grammar_ref(env_basic, mutate):
     mutate(env_basic, NEW_ANSWERS, "N4-G-0001「", "N4-G-9999「")
     answers, _, _ = _env(env_basic)

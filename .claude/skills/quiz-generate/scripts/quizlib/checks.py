@@ -48,10 +48,13 @@ def check_card_ids(answers: list[AnswerEntry], cards: dict, level: str,
     # 新卡段接缝：新卡号必须整体大于旧卡号且自身连续
     new_ids = [e.card_id for e in answers if e.card_id in cards]
     prefix = f"{level}-Q-"
-    same_level = [cid for cid in cards if cid.startswith(prefix)]
+    # 数值比较只纳入格式合法的 id（畸形 id——如坏卡退回的 stem——由上方格式检查
+    # 与 frontmatter 检查负责报告），避免 int() 抛 ValueError 使校验器崩溃
+    same_level = [cid for cid in cards if CARD_ID_RE.match(cid) and cid.startswith(prefix)]
     new_set = set(new_ids)
     old_max = max((_numeric(c) for c in same_level if c not in new_set), default=0)
-    nums = sorted(_numeric(c) for c in set(new_ids) if c.startswith(prefix))
+    nums = sorted(_numeric(c) for c in set(new_ids)
+                  if CARD_ID_RE.match(c) and c.startswith(prefix))
     if nums:
         if nums[0] <= old_max:
             findings.append(Finding("C1", ERROR, new_ids[0],
