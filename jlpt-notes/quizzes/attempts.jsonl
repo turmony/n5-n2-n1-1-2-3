@@ -382,7 +382,7 @@
 {"question_id": "N4-Q-0333", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0334", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0335", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["すぎ接续：动词去ます词干（し＋ぎて），两卷连败"], "date": "2026-08-21"}
-{"question_id": "N4-Q-0336", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["排序：の连锁语序（疑似笔误待确认，确认后更正）"], "date": "2026-08-21", "submitted_order": "2134"}
+{"question_id": "N4-Q-0336", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["排序：の连锁内部语序（动词块误置于属格前，作った悬空；经确认非笔误）"], "date": "2026-08-21", "submitted_order": "2134"}
 {"question_id": "N4-Q-0337", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "2341"}
 {"question_id": "N4-Q-0338", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["排序：连体修饰链断裂（話題の悬空无名词可修饰）"], "date": "2026-08-21", "submitted_order": "4132"}
 {"question_id": "N4-Q-0339", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "1243"}
