@@ -430,3 +430,30 @@
 {"question_id": "N4-Q-0381", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0382", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0383", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id":"N4-Q-0384","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0385","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0386","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":true,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0387","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0388","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0389","revision":1,"item_type":"grammar_form","selected_option":"2","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0390","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0391","revision":1,"item_type":"grammar_form","selected_option":"4","is_correct":false,"uncertain":false,"error_tags":["ように目的：治る（结果）／治せる（能力）混淆"],"date":"2026-08-21"}
+{"question_id":"N4-Q-0392","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0393","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0394","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0395","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0396","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0397","revision":1,"item_type":"grammar_form","selected_option":"3","is_correct":false,"uncertain":false,"error_tags":["郑重说明：お～いただけます／お～になります混淆"],"date":"2026-08-21"}
+{"question_id":"N4-Q-0398","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0399","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0400","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":true,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0401","revision":1,"item_type":"grammar_form","selected_option":"4","is_correct":false,"uncertain":true,"error_tags":["谦让语Ⅱ：我方服务动作／请求对方混淆"],"date":"2026-08-21"}
+{"question_id":"N4-Q-0402","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0403","revision":1,"item_type":"grammar_form","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0404","revision":1,"item_type":"sentence_composition","selected_option":"1324","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0405","revision":1,"item_type":"sentence_composition","selected_option":"4123","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0406","revision":1,"item_type":"sentence_composition","selected_option":"3142","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0407","revision":1,"item_type":"sentence_composition","selected_option":"1234","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0408","revision":1,"item_type":"sentence_composition","selected_option":"2413","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21","grading_note":"accepted_valid_alternative; question_has_multiple_natural_orders"}
+{"question_id":"N4-Q-0409","revision":1,"item_type":"sentence_composition","selected_option":"1234","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
+{"question_id":"N4-Q-0410","revision":1,"item_type":"sentence_composition","selected_option":"4213","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-08-21"}
