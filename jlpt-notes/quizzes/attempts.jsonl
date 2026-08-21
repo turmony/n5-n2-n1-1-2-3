@@ -396,3 +396,37 @@
 {"question_id": "N4-Q-0347", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0348", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
 {"question_id": "N4-Q-0349", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["终助词语域：当面叮咛求认同＝よね（误选自语ぞ），两卷连败"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0350", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0351", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["すぎ接续：ます形词干未触发（误选しまい），选择侧三连败；完形侧本卷已对"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0352", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0353", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0354", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0355", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0356", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0357", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0358", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0359", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0360", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["ような/ように：连体形误用（名词前选了副词形ように），卷二修复后复发"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0361", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0362", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0363", "revision": 1, "item_type": "text_grammar", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["ように目的：可能形＋ように（误选ために），两卷连败"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0364", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": false, "uncertain": false, "error_tags": ["意向形：読もう＋と（误用辞书形読む），两卷连败"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0365", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0366", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["郑重请求：ご～いただけますか（误选尊敬叙述になる），两卷连败"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0367", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0368", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0369", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["んです说明背景（误选逆接のに），对话侧错、排序侧对"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0370", "revision": 1, "item_type": "sentence_composition", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "1234"}
+{"question_id": "N4-Q-0371", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "2341"}
+{"question_id": "N4-Q-0372", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "2413"}
+{"question_id": "N4-Q-0373", "revision": 1, "item_type": "sentence_composition", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["排序：が连锁链内语序（疑似笔误待确认，3421与3241仅一处相邻互换）"], "date": "2026-08-21", "submitted_order": "3421"}
+{"question_id": "N4-Q-0374", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "2314"}
+{"question_id": "N4-Q-0375", "revision": 1, "item_type": "sentence_composition", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "1324"}
+{"question_id": "N4-Q-0376", "revision": 1, "item_type": "sentence_composition", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21", "submitted_order": "2143"}
+{"question_id": "N4-Q-0377", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["敬语谦尊：己方动作谦让语Ⅱお持ちいたす（误选尊敬になる），篇章叙述侧两卷连败；选择侧本卷已对"], "date": "2026-08-21"}
+{"question_id": "N4-Q-0378", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0379", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0380", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0381", "revision": 1, "item_type": "text_grammar", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0382", "revision": 1, "item_type": "text_grammar", "selected_option": "4", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
+{"question_id": "N4-Q-0383", "revision": 1, "item_type": "text_grammar", "selected_option": "3", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-08-21"}
