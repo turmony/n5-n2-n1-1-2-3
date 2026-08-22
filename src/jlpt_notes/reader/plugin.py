@@ -21,6 +21,7 @@ from pymdownx.slugs import slugify
 
 from .metadata import render_metadata_block
 from .sources import SourcePage, build_catalog_page, load_source_pages
+from .submissions import find_answer_block, is_blank_answer_area, parse_paper_structure
 
 
 class ReaderPluginConfig(base.Config):
@@ -152,7 +153,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
                 self.reused_pages += 1
         self._navigation_hash = navigation_fingerprint
         self._presentation_hash = presentation_fingerprint
-        for name in ("reader.css", "reader.js"):
+        for name in ("reader.css", "reader.js", "quiz-answer.js"):
             source_path = self._config_root / self.config.assets_dir / name
             file = File(
                 f"assets/{name}",
@@ -207,8 +208,9 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
                 None if previous is None else (_pager_href(previous[0], page.file.url), previous[1]),
                 None if nxt is None else (_pager_href(nxt[0], page.file.url), nxt[1]),
             )
+        quiz_state = _quiz_state_div(source)
         return (
-            f"# {safe_title}\n\n{page_state}\n\n"
+            f"# {safe_title}\n\n{page_state}\n\n{quiz_state}"
             f"{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
             + (f"\n\n{pager}" if pager else "")
         )
@@ -283,6 +285,34 @@ def _generation_version(url_hashes: dict[str, str]) -> str:
     ordered = sorted(url_hashes.items())
     version_source = "".join(f"{url}\0{content_hash}\n" for url, content_hash in ordered)
     return sha256(version_source.encode("utf-8")).hexdigest()
+
+
+def _quiz_state_div(source: SourcePage) -> str:
+    """Embed machine-readable quiz state for paper pages only."""
+    parts = source.relative_path.parts
+    if (
+        len(parts) != 3
+        or parts[0] != "quizzes"
+        or parts[1] != "papers"
+        or source.relative_path.suffix.lower() != ".md"
+    ):
+        return ""
+    questions, part_groups = parse_paper_structure(source.markdown)
+    if not questions:
+        return ""
+    block = find_answer_block(source.markdown)
+    state = {
+        "paper": source.relative_path.name,
+        "answered": block is not None and not is_blank_answer_area(block[2]),
+        "questions": [
+            {"number": q.number, "kind": q.kind, "options": q.option_count} for q in questions
+        ],
+        "parts": [
+            {"ordinal": ordinal, "numbers": list(numbers)} for ordinal, _title, numbers in part_groups
+        ],
+    }
+    payload = escape(json.dumps(state, ensure_ascii=False), quote=True)
+    return f'<div class="jlpt-quiz-state" data-quiz-state="{payload}" hidden></div>\n\n'
 
 
 class ReaderHeadingExtension(Extension):
@@ -563,7 +593,7 @@ _FULLTEXT_SEARCH_CONTROL = """<form class="jlpt-fulltext-search" data-jlpt-fullt
 
 def _allowed_attribute(tag: str, name: str, value: str) -> bool:
     """Allow only presentation, accessibility, and safe link attributes."""
-    if name in {"id", "class", "tabindex", "title", "rel"}:
+    if name in {"id", "class", "tabindex", "title", "rel", "hidden"}:
         return True
     if name.startswith("data-") or name.startswith("aria-"):
         return True
