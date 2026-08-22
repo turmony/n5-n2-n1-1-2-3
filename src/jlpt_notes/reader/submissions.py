@@ -151,19 +151,20 @@ def render_answer_area(answers: dict[int, tuple[str, bool]], parts: tuple[PaperP
     ``answers`` maps question number to ``(value, uncertain)``.  Uncertain
     answers get ``*`` before the question number, matching historical papers.
     """
-    questions_by_number = {number: (value, uncertain) for number, (value, uncertain) in answers.items()}
     blocks: list[str] = []
     for ordinal, _title, numbers in parts:
         if not numbers:
             continue
         tokens = []
         for number in numbers:
-            value, uncertain = questions_by_number[number]
+            value, uncertain = answers[number]
             token = f"{number}-{value}"
             if uncertain:
                 token = f"*{token}"
             tokens.append(token)
-        has_ordering = any(len(value) > 1 for value, _ in (questions_by_number[n] for n in numbers))
+        # 选择题值恒为单个数字，语序串长度 > 1，故以此启发式判断
+        # （调用方已先校验值的合法性）。
+        has_ordering = any(len(value) > 1 for value, _ in (answers[n] for n in numbers))
         # 单题部分只显示题号（如「（3，…）」），与历史试卷格式一致。
         range_str = str(numbers[0]) if numbers[0] == numbers[-1] else f"{numbers[0]}–{numbers[-1]}"
         if has_ordering:
