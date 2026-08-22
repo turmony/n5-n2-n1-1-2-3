@@ -117,6 +117,34 @@ class AnswerBlockTests(unittest.TestCase):
     def test_part_headers_are_not_mistaken_for_answers(self):
         self.assertTrue(is_blank_answer_area("第一部分（1–20）：\n_1_ , _1_\n"))
 
+    def test_offsets_span_exactly_the_whole_fence_including_marker_lines(self):
+        start, end, inner = find_answer_block(PAPER)
+        block = PAPER[start:end]
+        self.assertEqual(block, "```text\n" + inner + "```\n")
+        self.assertTrue(block.startswith("```text\n"))
+        self.assertTrue(block.endswith("```\n"))
+        self.assertIn("_1_", inner)
+
+    def test_offsets_stay_exact_under_crlf_line_endings(self):
+        lf_start, lf_end, lf_inner = find_answer_block(PAPER)
+        crlf_paper = PAPER.replace("\n", "\r\n")
+        found = find_answer_block(crlf_paper)
+        self.assertIsNotNone(found)
+        start, end, inner = found
+        self.assertEqual(crlf_paper[start:end], "```text\r\n" + inner + "```\r\n")
+        self.assertEqual(inner.replace("\r\n", "\n"), lf_inner)
+        # 围栏内每行多一个 \r，块长度相应增加；块前的行同理。
+        fence_lines = lf_inner.count("\n") + 2
+        self.assertEqual(end - start, (lf_end - lf_start) + fence_lines)
+        lines_before = crlf_paper[:start].count("\n")
+        self.assertEqual(start, lf_start + lines_before)
+
+    def test_real_placeholder_shapes_are_treated_as_blank(self):
+        self.assertTrue(
+            is_blank_answer_area("第一部分（1–20）：\n1-__ , 2-__ , 21-____\n")
+        )
+        self.assertFalse(is_blank_answer_area("1-3 , 21-1234\n"))
+
 
 if __name__ == "__main__":
     unittest.main()

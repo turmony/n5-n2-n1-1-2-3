@@ -24,6 +24,8 @@ SUBMIT_PATH = "/reader/submit-answers"
 _PART_HEADING = re.compile(r"^##\s*第(.+?)部分")
 _QUESTION_HEADING = re.compile(r"^#{3,4}\s*(\d+)[\.．]")
 _OPTION_LINE = re.compile(r"^\d+[\.．]\s+\S")
+# 假设答案区内容只含服务端格式的「题号-数字」（可带前置 * 不确定标记），
+# 因此占位符如 `1-__` 不会命中，仍视为空白。
 _REAL_ANSWER = re.compile(r"^\s*\*?\d+-\d", re.MULTILINE)
 
 
@@ -104,6 +106,9 @@ def find_answer_block(text: str) -> tuple[int, int, str] | None:
 
     Returns ``(block_start, block_end, inner)`` covering the whole fence
     including the ``` markers, or None when the heading or fence is absent.
+
+    ``block_end`` is exclusive; offsets are measured against text read by
+    the caller with ``newline=""`` so original line endings are preserved.
     """
     lines = text.splitlines(keepends=True)
     heading_index = None
