@@ -478,5 +478,83 @@ class ReaderServerTests(unittest.TestCase):
         self.assertIn("unexpected live request failure", errors.getvalue())
 
 
+from jlpt_notes.reader.submissions import MAX_REQUEST_BYTES
+
+
+class SubmitEndpointRoutingTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.site = self.root / "site-1"
+        self.site.mkdir(parents=True)
+        (self.site / "index.html").write_text("<h1>JLPT</h1>", encoding="utf-8")
+        (self.site / "reader-version.json").write_text('{"version":"v1"}', encoding="utf-8")
+        self.store = SiteStore(self.root)
+        self.store.activate(self.site)
+        self.submit_calls = []
+
+        def submit(body: bytes):
+            self.submit_calls.append(body)
+            return 200, {"status": "saved"}
+
+        self.server = ReadOnlyServer(self.store, "127.0.0.1", 0, submit=submit)
+        self.server.start()
+
+    def tearDown(self) -> None:
+        self.server.stop()
+        self.temporary.cleanup()
+
+    def request(self, method: str, target: str, body: bytes | None = None):
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.bound_port, timeout=5)
+        connection.request(method, target, body=body)
+        response = connection.getresponse()
+        payload = response.read()
+        status = response.status
+        connection.close()
+        return status, payload
+
+    def test_post_to_the_whitelist_endpoint_reaches_the_submit_callback(self):
+        status, payload = self.request("POST", "/reader/submit-answers", body=b'{"ok":1}')
+        self.assertEqual(status, 200)
+        self.assertEqual(self.submit_calls, [b'{"ok":1}'])
+        self.assertIn('"status": "saved"', payload.decode("utf-8"))
+
+    def test_callback_status_codes_pass_through(self):
+        self.submit_calls.clear()
+        status, payload = self.request("POST", "/reader/submit-answers", body=b'{"twice":1}')
+        self.assertEqual(status, 200)
+
+    def test_get_and_head_on_the_endpoint_are_405(self):
+        for method in ("GET", "HEAD"):
+            status, _payload = self.request(method, "/reader/submit-answers")
+            self.assertEqual(status, 405, method)
+        self.assertEqual(self.submit_calls, [])
+
+    def test_post_anywhere_else_is_still_405(self):
+        status, _payload = self.request("POST", "/index.html", body=b"x")
+        self.assertEqual(status, 405)
+        self.assertEqual(self.submit_calls, [])
+
+    def test_oversized_body_is_413_without_calling_submit(self):
+        status, _payload = self.request(
+            "POST", "/reader/submit-answers", body=b"x" * (MAX_REQUEST_BYTES + 1)
+        )
+        self.assertEqual(status, 413)
+        self.assertEqual(self.submit_calls, [])
+
+    def test_server_without_submit_handler_keeps_the_uniform_read_only_boundary(self):
+        server = ReadOnlyServer(self.store, "127.0.0.1", 0)
+        server.start()
+        try:
+            connection = http.client.HTTPConnection("127.0.0.1", server.bound_port, timeout=5)
+            connection.request("POST", "/reader/submit-answers", body=b"{}")
+            response = connection.getresponse()
+            response.read()
+            self.assertEqual(response.status, 405)
+            connection.close()
+        finally:
+            server.stop()
+
+
 if __name__ == "__main__":
     unittest.main()

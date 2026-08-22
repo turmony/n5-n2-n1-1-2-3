@@ -1,6 +1,8 @@
 """Serve only published reader output over a strictly read-only HTTP boundary."""
 
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
 import mimetypes
 import os
 from pathlib import PurePosixPath
@@ -10,6 +12,10 @@ from threading import Event, Lock, Thread, current_thread
 from urllib.parse import unquote, urlsplit
 
 from .builder import SiteStore
+from .submissions import MAX_REQUEST_BYTES, SUBMIT_PATH
+
+
+SubmitHandler = Callable[[bytes], tuple[int, dict]]
 
 
 _CONTENT_SECURITY_POLICY = (
@@ -21,8 +27,14 @@ _CONTENT_SECURITY_POLICY = (
 class ReadOnlyServer:
     """Run a generated-site-only HTTP server on a background thread."""
 
-    def __init__(self, store: SiteStore, host: str, port: int) -> None:
-        self._httpd = _JoinableRequestServer((host, port), _handler_for(store))
+    def __init__(
+        self,
+        store: SiteStore,
+        host: str,
+        port: int,
+        submit: SubmitHandler | None = None,
+    ) -> None:
+        self._httpd = _JoinableRequestServer((host, port), _handler_for(store, submit))
         self._thread = Thread(
             target=self._httpd.serve_forever,
             name="jlpt-reader-http",
@@ -136,7 +148,9 @@ class _JoinableRequestServer(ThreadingHTTPServer):
                 pass
 
 
-def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
+def _handler_for(
+    store: SiteStore, submit: SubmitHandler | None
+) -> type[BaseHTTPRequestHandler]:
     class GeneratedSiteHandler(BaseHTTPRequestHandler):
         def parse_request(self) -> bool:
             # BaseHTTPRequestHandler deliberately collapses a leading `//` to
@@ -146,10 +160,54 @@ def _handler_for(store: SiteStore) -> type[BaseHTTPRequestHandler]:
             return super().parse_request()
 
         def do_GET(self) -> None:
+            if self._is_submit_endpoint():
+                self._method_not_allowed()
+                return
             self._serve(send_body=True)
 
         def do_HEAD(self) -> None:
+            if self._is_submit_endpoint():
+                self._method_not_allowed()
+                return
             self._serve(send_body=False)
+
+        def do_POST(self) -> None:
+            # The submit endpoint is the single deliberate exception to the
+            # read-only boundary; without an injected handler it stays 405.
+            if submit is None or not self._is_submit_endpoint():
+                self._method_not_allowed()
+                return
+            self._handle_submit()
+
+        def _is_submit_endpoint(self) -> bool:
+            return urlsplit(self._raw_request_target).path == SUBMIT_PATH
+
+        def _handle_submit(self) -> None:
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except (TypeError, ValueError):
+                length = 0
+            length = max(length, 0)
+            if length > MAX_REQUEST_BYTES:
+                # Never stream an oversized body into memory.
+                self.close_connection = True
+                self._json_response(413, {"error": "请求过大"})
+                return
+            body = self.rfile.read(length) if length else b""
+            status, payload = submit(body)
+            self._json_response(status, payload)
+
+        def _json_response(self, status: int, payload: dict) -> None:
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError):
+                return
 
         def __getattr__(self, name: str):
             # BaseHTTPRequestHandler otherwise turns unimplemented methods into
