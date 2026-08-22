@@ -968,11 +968,18 @@ class SubmissionWiringTests(ReaderControllerTests):
                  "jlpt_notes.reader.controller.private_lan_addresses",
                  return_value=(LanAddress(7, "192.168.1.42", "Private"),),
              ), \
-             patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=True):
+             patch("jlpt_notes.reader.controller.firewall_rule_present", side_effect=[False, True]), \
+             patch("jlpt_notes.reader.controller.configure_firewall_rule", return_value=True):
             controller = ReaderController(root, config, program, on_status=statuses.append)
 
             self.assertTrue(controller.start())
-            self.assertIs(_FakeServer.instances[0].submit, controller._submit_payload)
+            self.assertEqual(_FakeServer.instances[0].host, "127.0.0.1")
+            # The rebind replaces the loopback server with a wildcard server.
+            self.assertTrue(controller.configure_firewall())
+
+            self.assertGreaterEqual(len(_FakeServer.instances), 2)
+            for instance in _FakeServer.instances:
+                self.assertIs(instance.submit, controller._submit_handler)
             controller.stop()
 
     def test_the_submit_handler_writes_into_the_sessions_papers_directory(self) -> None:

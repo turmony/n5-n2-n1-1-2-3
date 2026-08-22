@@ -64,9 +64,10 @@ class ReaderController:
         self._addresses: tuple[str, ...] = ()
         self._lan_enabled = False
         self._network_reason = ""
-        # One stable handler object so every server rebind receives the same
-        # callable and tests can verify wiring by identity.
-        self._submit_payload = self._submit_payload
+        # Cache the bound method under a distinct name so every construction
+        # and rebind receives the same handler object, and tests can verify
+        # wiring by identity.
+        self._submit_handler = self._submit_payload
 
     @property
     def urls(self) -> tuple[str, ...]:
@@ -128,7 +129,7 @@ class ReaderController:
             status = self._inspect_network()
             host = "0.0.0.0" if status.state == "running" else "127.0.0.1"
             try:
-                server = ReadOnlyServer(store, host, self.port, submit=self._submit_payload)
+                server = ReadOnlyServer(store, host, self.port, submit=self._submit_handler)
                 server.start()
             except OSError as error:
                 self._publish(
@@ -231,14 +232,14 @@ class ReaderController:
             old_server.stop()
             replacement: ReadOnlyServer | None = None
             try:
-                replacement = ReadOnlyServer(store, "0.0.0.0", self.port, submit=self._submit_payload)
+                replacement = ReadOnlyServer(store, "0.0.0.0", self.port, submit=self._submit_handler)
                 replacement.start()
             except Exception as wildcard_error:
                 if replacement is not None:
                     replacement.stop()
                 fallback: ReadOnlyServer | None = None
                 try:
-                    fallback = ReadOnlyServer(store, "127.0.0.1", self.port, submit=self._submit_payload)
+                    fallback = ReadOnlyServer(store, "127.0.0.1", self.port, submit=self._submit_handler)
                     fallback.start()
                 except Exception as fallback_error:
                     if fallback is not None:
