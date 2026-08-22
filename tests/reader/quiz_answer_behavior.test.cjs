@@ -66,3 +66,43 @@ test("draft keys are isolated per paper", () => {
   assert.equal(core.draftKey("a.md"), "jlpt-quiz-draft:a.md");
   assert.notEqual(core.draftKey("a.md"), core.draftKey("b.md"));
 });
+
+test("restoreDraft ignores invalid payloads without throwing or mutating state", () => {
+  for (const raw of ["not-json", "null", "42", "[1]"]) {
+    const state = core.createQuizState([{ number: 1, kind: "choice", options: 4 }]);
+    core.selectChoice(state, 1, 2);
+    core.restoreDraft(state, raw);
+    assert.equal(state.answers[1].value, "2", `raw=${raw}`);
+    assert.equal(state.answers[1].uncertain, false, `raw=${raw}`);
+  }
+});
+
+test("ordering append stops at the option count", () => {
+  const state = core.createQuizState([{ number: 1, kind: "ordering", options: 2 }]);
+  core.selectChoice(state, 1, 1);
+  core.selectChoice(state, 1, 2);
+  core.selectChoice(state, 1, 3);
+  assert.equal(state.answers[1].value, "12");
+});
+
+test("payload orders question numbers numerically", () => {
+  const state = core.createQuizState([
+    { number: 12, kind: "choice", options: 4 },
+    { number: 2, kind: "choice", options: 4 },
+  ]);
+  core.selectChoice(state, 2, 1);
+  core.selectChoice(state, 12, 3);
+  assert.deepEqual(
+    core.buildPayload(state, "paper.md").answers.map((entry) => entry.number),
+    [2, 12]
+  );
+});
+
+test("answeredCount counts only answered questions", () => {
+  const state = core.createQuizState([
+    { number: 1, kind: "choice", options: 4 },
+    { number: 2, kind: "choice", options: 4 },
+  ]);
+  core.selectChoice(state, 1, 3);
+  assert.equal(core.answeredCount(state), 1);
+});

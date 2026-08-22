@@ -24,6 +24,7 @@
       answer.value = answer.value.slice(0, position) + answer.value.slice(position + 1);
       return;
     }
+    // 满员后继续点击被忽略，需先撤回（有意交互，DOM 层给视觉反馈）
     if (answer.value.length < answer.options) answer.value += digit;
   }
 
@@ -32,6 +33,7 @@
     if (answer) answer.uncertain = !answer.uncertain;
   }
 
+  // 调用方（DOM 层）保证试卷至少一题；服务端也会兜底拒绝空答案列表
   function isComplete(state) {
     return Object.values(state.answers).every((answer) => answer.value.length > 0);
   }
@@ -63,6 +65,7 @@
     } catch (error) {
       return;
     }
+    if (!saved || typeof saved !== "object") return;
     for (const number of Object.keys(state.answers)) {
       const entry = saved[number];
       if (!entry || typeof entry.value !== "string" || typeof entry.uncertain !== "boolean") continue;
