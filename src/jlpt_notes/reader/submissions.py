@@ -22,7 +22,7 @@ MAX_REQUEST_BYTES = 8192
 SUBMIT_PATH = "/reader/submit-answers"
 
 _PART_HEADING = re.compile(r"^##\s*第(.+?)部分")
-_QUESTION_HEADING = re.compile(r"^###\s*(\d+)[\.．]")
+_QUESTION_HEADING = re.compile(r"^#{3,4}\s*(\d+)[\.．]")
 _OPTION_LINE = re.compile(r"^\d+[\.．]\s+\S")
 
 

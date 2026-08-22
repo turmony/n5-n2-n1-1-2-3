@@ -69,5 +69,28 @@ class ParsePaperStructureTests(unittest.TestCase):
         self.assertEqual([(ordinal, numbers) for ordinal, _, numbers in parts], [("一", (1,))])
 
 
+    def test_parses_nested_h4_question_headings_in_cloze_part(self):
+        text = (
+            "# 试卷\n\n"
+            "## 第三部分：完形（3–4）\n\n"
+            "### 文章一：某个干扰标题\n\n"
+            "#### 3. 问题三（　）。\n\n"
+            "1. 甲\n2. 乙\n3. 丙\n4. 丁\n\n"
+            "#### 4. 问题四（　）。\n\n"
+            "1. 甲\n2. 乙\n3. 丙\n4. 丁\n\n"
+            "## 答案填写区\n\n"
+            "```text\n第三部分（3–4）：\n_1_ , _1_\n```\n"
+        )
+        questions, parts = parse_paper_structure(text)
+        self.assertEqual(
+            [(q.number, q.kind, q.option_count) for q in questions],
+            [(3, "choice", 4), (4, "choice", 4)],
+        )
+        self.assertEqual(
+            [(ordinal, numbers) for ordinal, _, numbers in parts],
+            [("三", (3, 4))],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
