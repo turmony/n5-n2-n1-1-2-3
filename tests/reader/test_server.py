@@ -495,6 +495,8 @@ class SubmitEndpointRoutingTests(unittest.TestCase):
 
         def submit(body: bytes):
             self.submit_calls.append(body)
+            if body == b'{"twice":1}':
+                return 409, {"error": "该试卷已有作答，不能重复提交"}
             return 200, {"status": "saved"}
 
         self.server = ReadOnlyServer(self.store, "127.0.0.1", 0, submit=submit)
@@ -520,9 +522,12 @@ class SubmitEndpointRoutingTests(unittest.TestCase):
         self.assertIn('"status": "saved"', payload.decode("utf-8"))
 
     def test_callback_status_codes_pass_through(self):
-        self.submit_calls.clear()
         status, payload = self.request("POST", "/reader/submit-answers", body=b'{"twice":1}')
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 409)
+        self.assertEqual(self.submit_calls, [b'{"twice":1}'])
+        decoded = payload.decode("utf-8")
+        self.assertIn('"error"', decoded)
+        self.assertIn("该试卷已有作答", decoded)
 
     def test_get_and_head_on_the_endpoint_are_405(self):
         for method in ("GET", "HEAD"):
