@@ -24,7 +24,7 @@
       answer.value = answer.value.slice(0, position) + answer.value.slice(position + 1);
       return;
     }
-    // 满员后继续点击被忽略，需先撤回（有意交互，DOM 层给视觉反馈）
+    // 满员后继续点击无效果，用户需先撤回已选数字
     if (answer.value.length < answer.options) answer.value += digit;
   }
 
@@ -111,11 +111,29 @@
 
     const article = document.querySelector("article.md-content__inner, .md-content");
     if (!article) return;
-    const questionHeadings = article.querySelectorAll("h3, h4");
+    // 幂等守卫：防止 document$ 重复触发导致按钮/工具条叠加
+    if (article.querySelector(".jlpt-quiz-bar")) return;
+
+    const questionHeadings = article.querySelectorAll("h3, h4, h5");
     const byNumber = {};
     for (const heading of questionHeadings) {
       const match = heading.textContent.match(/^\s*(\d+)[\.．]/);
       if (match) byNumber[Number(match[1])] = heading;
+    }
+
+    // 选项 OL 不一定紧邻标题（阅读/对话题中间隔有正文段落），
+    // 向后遍历到下一个题目标题或 h2 部分标题为止，取区间内首个 OL；
+    // 阅读器插件会把源文件 #### 降级渲染为 h5，因此匹配范围含 h5
+    function findOptionsList(heading) {
+      let node = heading.nextElementSibling;
+      while (node) {
+        const tag = node.tagName;
+        if (tag === "H2") return null;
+        if ((tag === "H3" || tag === "H4" || tag === "H5") && /^\s*\d+[\.．]/.test(node.textContent)) return null;
+        if (tag === "OL") return node;
+        node = node.nextElementSibling;
+      }
+      return null;
     }
 
     function persist() {
@@ -130,8 +148,8 @@
     config.questions.forEach((question) => {
       const heading = byNumber[question.number];
       if (!heading) return;
-      const list = heading.nextElementSibling;
-      if (!list || list.tagName !== "OL") return;
+      const list = findOptionsList(heading);
+      if (!list) return;
       const items = Array.from(list.children);
       items.forEach((item, index) => {
         const option = index + 1;
@@ -212,16 +230,26 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(core.buildPayload(state, config.paper)),
-      }).then((response) => response.json().then((body) => ({ response, body })))
-        .then(({ response, body }) => {
-          if (response.ok) {
+      }).then((response) => {
+          function succeed() {
             window.localStorage.removeItem(core.draftKey(config.paper));
             window.alert("答案已保存，页面即将更新为只读版本。");
             window.location.reload();
-          } else {
-            window.alert("提交失败：" + (body.error || "未知错误"));
+          }
+          function fail(message) {
+            window.alert(message);
             submit.disabled = false;
           }
+          // 2xx 但 body 非 JSON 也按成功处理；非 2xx 且 body 解析失败时报状态码
+          return response.json()
+            .then((body) => {
+              if (response.ok) succeed();
+              else fail("提交失败：" + (body.error || "未知错误"));
+            })
+            .catch(() => {
+              if (response.ok) succeed();
+              else fail("提交失败：" + response.status);
+            });
         })
         .catch(() => {
           window.alert("提交失败：网络错误，已选答案仍保留在本页。");
