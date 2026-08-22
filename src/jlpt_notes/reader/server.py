@@ -194,7 +194,11 @@ def _handler_for(
                 self._json_response(413, {"error": "请求过大"})
                 return
             body = self.rfile.read(length) if length else b""
-            status, payload = submit(body)
+            try:
+                status, payload = submit(body)
+            except Exception:
+                self._json_response(500, {"error": "服务器内部错误"})
+                return
             self._json_response(status, payload)
 
         def _json_response(self, status: int, payload: dict) -> None:
