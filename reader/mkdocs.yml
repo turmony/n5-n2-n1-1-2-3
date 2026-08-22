@@ -34,5 +34,6 @@ extra_css:
   - assets/reader.css
 extra_javascript:
   - assets/reader.js
+  - assets/quiz-answer.js
 repo_url: null
 edit_uri: null
