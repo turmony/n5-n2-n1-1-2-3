@@ -46,12 +46,13 @@ class _FakeServer:
     instances = []
     creation_errors = []
 
-    def __init__(self, store, host: str, port: int) -> None:
+    def __init__(self, store, host: str, port: int, submit=None) -> None:
         if self.__class__.creation_errors:
             raise self.__class__.creation_errors.pop(0)
         self.store = store
         self.host = host
         self.port = port
+        self.submit = submit
         self.start_calls = 0
         self.stop_calls = 0
         self.__class__.instances.append(self)
@@ -937,6 +938,62 @@ class ReaderControllerTests(unittest.TestCase):
              patch("jlpt_notes.reader.controller.SourceWatcher", _FakeWatcher), \
              patch("jlpt_notes.reader.controller.build_site", side_effect=fake_build):
             yield
+
+
+_WIRING_PAPER = """# 测试卷
+
+## 第一部分：形式选择（1）
+
+### 1. 問題一（　）。
+
+1. 甲
+2. 乙
+3. 丙
+4. 丁
+
+## 答案填写区
+
+```text
+第一部分（1）：
+_1_
+```
+"""
+
+
+class SubmissionWiringTests(ReaderControllerTests):
+    def test_start_wires_the_submit_handler_into_every_server(self) -> None:
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[BuildResult(True, version="v1")]), \
+             patch(
+                 "jlpt_notes.reader.controller.private_lan_addresses",
+                 return_value=(LanAddress(7, "192.168.1.42", "Private"),),
+             ), \
+             patch("jlpt_notes.reader.controller.firewall_rule_present", return_value=True):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+
+            self.assertTrue(controller.start())
+            self.assertIs(_FakeServer.instances[0].submit, controller._submit_payload)
+            controller.stop()
+
+    def test_the_submit_handler_writes_into_the_sessions_papers_directory(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / "notes"
+            papers = root / "quizzes" / "papers"
+            papers.mkdir(parents=True)
+            (papers / "paper.md").write_text(_WIRING_PAPER, encoding="utf-8")
+            program = Path(directory) / "pythonw.exe"
+            program.write_bytes(b"test executable")
+            controller = ReaderController(root, Path(directory) / "mkdocs.yml", program)
+            body = json.dumps({
+                "paper": "paper.md",
+                "answers": [{"number": 1, "value": "2", "uncertain": False}],
+            }).encode("utf-8")
+
+            status, payload = controller._submit_payload(body)
+
+            self.assertEqual(status, 200)
+            self.assertEqual(payload, {"status": "saved"})
+            self.assertIn("1-2", (papers / "paper.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

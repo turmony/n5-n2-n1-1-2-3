@@ -16,6 +16,7 @@ from .firewall import (
 from .network import private_lan_addresses
 from .server import ReadOnlyServer
 from .session import ReaderSessionDirectory
+from .submissions import apply_submission
 from .watcher import SourceWatcher, snapshot_sources
 
 
@@ -63,6 +64,9 @@ class ReaderController:
         self._addresses: tuple[str, ...] = ()
         self._lan_enabled = False
         self._network_reason = ""
+        # One stable handler object so every server rebind receives the same
+        # callable and tests can verify wiring by identity.
+        self._submit_payload = self._submit_payload
 
     @property
     def urls(self) -> tuple[str, ...]:
@@ -124,7 +128,7 @@ class ReaderController:
             status = self._inspect_network()
             host = "0.0.0.0" if status.state == "running" else "127.0.0.1"
             try:
-                server = ReadOnlyServer(store, host, self.port)
+                server = ReadOnlyServer(store, host, self.port, submit=self._submit_payload)
                 server.start()
             except OSError as error:
                 self._publish(
@@ -159,6 +163,11 @@ class ReaderController:
         finally:
             with self._lifecycle_lock:
                 self._starting = False
+
+    def _submit_payload(self, body: bytes) -> tuple[int, dict]:
+        """Apply one quiz answer submission against this session's library."""
+        result = apply_submission(self.root / "quizzes" / "papers", body)
+        return result.status_code, result.body
 
     def rebuild(self) -> bool:
         """Publish one settled rebuild, or retain the current last-good site."""
@@ -222,14 +231,14 @@ class ReaderController:
             old_server.stop()
             replacement: ReadOnlyServer | None = None
             try:
-                replacement = ReadOnlyServer(store, "0.0.0.0", self.port)
+                replacement = ReadOnlyServer(store, "0.0.0.0", self.port, submit=self._submit_payload)
                 replacement.start()
             except Exception as wildcard_error:
                 if replacement is not None:
                     replacement.stop()
                 fallback: ReadOnlyServer | None = None
                 try:
-                    fallback = ReadOnlyServer(store, "127.0.0.1", self.port)
+                    fallback = ReadOnlyServer(store, "127.0.0.1", self.port, submit=self._submit_payload)
                     fallback.start()
                 except Exception as fallback_error:
                     if fallback is not None:
