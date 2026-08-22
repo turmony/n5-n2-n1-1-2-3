@@ -175,7 +175,10 @@ def apply_submission(papers_dir: Path, raw_body: bytes) -> SubmissionResult:
     if not isinstance(answers_payload, list):
         return SubmissionResult(400, {"error": "缺少答案列表"})
     with _submit_lock:
-        resolved_root = papers_dir.resolve(strict=True)
+        try:
+            resolved_root = papers_dir.resolve(strict=True)
+        except OSError:
+            return SubmissionResult(404, {"error": "试卷不存在"})
         target = (resolved_root / paper_name).resolve()
         if target.parent != resolved_root or not target.is_file():
             return SubmissionResult(404, {"error": "试卷不存在"})
@@ -220,7 +223,11 @@ def apply_submission(papers_dir: Path, raw_body: bytes) -> SubmissionResult:
             return SubmissionResult(400, {"error": "答案必须覆盖试卷全部题目"})
         new_inner = render_answer_area(by_number, parts)
         start, end, _inner = block
-        new_text = text[:start] + "```text\n" + new_inner + "```" + text[end:]
+        newline = "\r\n" if "\r\n" in text else "\n"
+        new_block = "```text\n" + new_inner + "```\n"
+        if newline != "\n":
+            new_block = new_block.replace("\n", newline)
+        new_text = text[:start] + new_block + text[end:]
         fd, temp_name = tempfile.mkstemp(dir=str(resolved_root), suffix=".jlpt-tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:

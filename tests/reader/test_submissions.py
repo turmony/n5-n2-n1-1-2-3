@@ -191,17 +191,38 @@ class ApplySubmissionTests(unittest.TestCase):
         return json.dumps(body).encode("utf-8")
 
     def test_writes_only_the_answer_block_and_keeps_every_other_byte(self):
+        # 围栏后带附注，验证结束围栏换行与后续内容原样保留。
+        paper_with_tail = PAPER.rstrip("\n") + "\n\n## 附注\n\n内容。\n"
         with tempfile.TemporaryDirectory() as tmp:
-            papers = _papers_dir(pathlib.Path(tmp))
-            original = (papers / "paper.md").read_text(encoding="utf-8")
-            block = find_answer_block(original)
-            expected = original[: block[0]] + "```text\n" + render_answer_area(
-                {1: ("1", False), 2: ("3", True), 3: ("2314", False)},
-                parse_paper_structure(original)[1],
-            ) + "```" + original[block[1]:]
+            papers = _papers_dir(pathlib.Path(tmp), paper_with_tail)
             result = apply_submission(papers, self._payload())
             self.assertEqual(result.status_code, 200)
+            before_fence = paper_with_tail.split("## 答案填写区")[0]
+            expected = (
+                before_fence
+                + "## 答案填写区\n\n```text\n"
+                "第一部分（1–2）：\n1-1 , *2-3\n\n"
+                "第二部分（3，请提交完整语序，如“3：1234”）：\n3-2314\n"
+                "```\n\n## 附注\n\n内容。\n"
+            )
             self.assertEqual((papers / "paper.md").read_text(encoding="utf-8"), expected)
+
+    def test_preserves_crlf_line_endings_when_writing_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp), PAPER.replace("\n", "\r\n"))
+            result = apply_submission(papers, self._payload())
+            self.assertEqual(result.status_code, 200)
+            with (papers / "paper.md").open("r", encoding="utf-8", newline="") as handle:
+                result_text = handle.read()
+            self.assertNotIn("\n", result_text.replace("\r\n", ""))
+            self.assertIn("第一部分（1–2）：\r\n1-1 , *2-3\r\n", result_text)
+
+    def test_returns_404_when_the_papers_dir_does_not_exist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = pathlib.Path(tmp) / "missing"
+            result = apply_submission(missing, self._payload())
+            self.assertEqual(result.status_code, 404)
+            self.assertEqual(result.body, {"error": "试卷不存在"})
 
     def test_rejects_when_the_answer_area_is_already_filled(self):
         filled = PAPER.replace("_1_ , _1_", "1-1 , 2-1", 1)
