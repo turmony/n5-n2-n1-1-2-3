@@ -145,6 +145,96 @@ def is_blank_answer_area(inner: str) -> bool:
     return _REAL_ANSWER.search(inner) is None
 
 
+_PAPER_NAME = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]*\.md$")
+_CHOICE_VALUE = re.compile(r"^[1-9]$")
+_ORDERING_VALUE = re.compile(r"^\d+$")
+
+_submit_lock = Lock()
+
+
+@dataclass(frozen=True)
+class SubmissionResult:
+    """One submission outcome ready for an HTTP response."""
+
+    status_code: int
+    body: dict
+
+
+def apply_submission(papers_dir: Path, raw_body: bytes) -> SubmissionResult:
+    """Validate and apply one answer submission; never touches other files."""
+    if len(raw_body) > MAX_REQUEST_BYTES:
+        return SubmissionResult(413, {"error": "请求过大"})
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return SubmissionResult(400, {"error": "请求不是有效的 JSON"})
+    paper_name = payload.get("paper") if isinstance(payload, dict) else None
+    if not isinstance(paper_name, str) or not _PAPER_NAME.fullmatch(paper_name):
+        return SubmissionResult(400, {"error": "试卷文件名无效"})
+    answers_payload = payload.get("answers") if isinstance(payload, dict) else None
+    if not isinstance(answers_payload, list):
+        return SubmissionResult(400, {"error": "缺少答案列表"})
+    with _submit_lock:
+        resolved_root = papers_dir.resolve(strict=True)
+        target = (resolved_root / paper_name).resolve()
+        if target.parent != resolved_root or not target.is_file():
+            return SubmissionResult(404, {"error": "试卷不存在"})
+        try:
+            with target.open("r", encoding="utf-8", newline="") as handle:
+                text = handle.read()
+        except (OSError, UnicodeDecodeError):
+            return SubmissionResult(404, {"error": "试卷不可读"})
+        questions, parts = parse_paper_structure(text)
+        block = find_answer_block(text)
+        if not questions or block is None:
+            return SubmissionResult(400, {"error": "试卷缺少答案填写区"})
+        if not is_blank_answer_area(block[2]):
+            return SubmissionResult(409, {"error": "该试卷已有作答，不能重复提交"})
+        expected_numbers = {question.number for question in questions}
+        by_number: dict[int, tuple[str, bool]] = {}
+        for item in answers_payload:
+            if not isinstance(item, dict):
+                return SubmissionResult(400, {"error": "答案条目格式无效"})
+            number = item.get("number")
+            value = item.get("value")
+            uncertain = item.get("uncertain")
+            if isinstance(number, bool) or not isinstance(number, int) or number not in expected_numbers:
+                return SubmissionResult(400, {"error": f"题号无效：{number!r}"})
+            if number in by_number:
+                return SubmissionResult(400, {"error": f"题号重复：{number}"})
+            if not isinstance(value, str) or not isinstance(uncertain, bool):
+                return SubmissionResult(400, {"error": f"第 {number} 题答案格式无效"})
+            question = next(q for q in questions if q.number == number)
+            if question.kind == "choice":
+                if not _CHOICE_VALUE.fullmatch(value) or int(value) > question.option_count:
+                    return SubmissionResult(400, {"error": f"第 {number} 题选项无效"})
+            else:
+                if (
+                    not _ORDERING_VALUE.fullmatch(value)
+                    or len(value) != question.option_count
+                    or sorted(value) != [str(digit) for digit in range(1, question.option_count + 1)]
+                ):
+                    return SubmissionResult(400, {"error": f"第 {number} 题语序无效"})
+            by_number[number] = (value, uncertain)
+        if set(by_number) != expected_numbers:
+            return SubmissionResult(400, {"error": "答案必须覆盖试卷全部题目"})
+        new_inner = render_answer_area(by_number, parts)
+        start, end, _inner = block
+        new_text = text[:start] + "```text\n" + new_inner + "```" + text[end:]
+        fd, temp_name = tempfile.mkstemp(dir=str(resolved_root), suffix=".jlpt-tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+                handle.write(new_text)
+            os.replace(temp_name, target)
+        except BaseException:
+            try:
+                os.unlink(temp_name)
+            except OSError:
+                pass
+            raise
+        return SubmissionResult(200, {"status": "saved"})
+
+
 def render_answer_area(answers: dict[int, tuple[str, bool]], parts: tuple[PaperPart, ...]) -> str:
     """Build the answer-area inner text in the quiz-grade compatible format.
 

@@ -1,8 +1,14 @@
 """Behavioral tests for the quiz answer submission boundary."""
 
+import json
+import pathlib
+import tempfile
 import unittest
 
 from jlpt_notes.reader.submissions import (
+    MAX_REQUEST_BYTES,
+    SubmissionResult,
+    apply_submission,
     find_answer_block,
     is_blank_answer_area,
     parse_paper_structure,
@@ -165,6 +171,84 @@ class RenderAnswerAreaTests(unittest.TestCase):
         answers = {n: (str(n % 4 + 1), False) for n in range(1, 7)}
         inner = render_answer_area(answers, parts)
         self.assertIn("1-2 , 2-3 , 3-4 , 4-1 , 5-2\n6-3\n", inner)
+
+
+def _papers_dir(tmp: pathlib.Path, text: str = PAPER, name: str = "paper.md") -> pathlib.Path:
+    papers = tmp / "quizzes" / "papers"
+    papers.mkdir(parents=True)
+    (papers / name).write_text(text, encoding="utf-8")
+    return papers
+
+
+class ApplySubmissionTests(unittest.TestCase):
+    def _payload(self, **overrides):
+        body = {"paper": "paper.md", "answers": [
+            {"number": 1, "value": "1", "uncertain": False},
+            {"number": 2, "value": "3", "uncertain": True},
+            {"number": 3, "value": "2314", "uncertain": False},
+        ]}
+        body.update(overrides)
+        return json.dumps(body).encode("utf-8")
+
+    def test_writes_only_the_answer_block_and_keeps_every_other_byte(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp))
+            original = (papers / "paper.md").read_text(encoding="utf-8")
+            block = find_answer_block(original)
+            expected = original[: block[0]] + "```text\n" + render_answer_area(
+                {1: ("1", False), 2: ("3", True), 3: ("2314", False)},
+                parse_paper_structure(original)[1],
+            ) + "```" + original[block[1]:]
+            result = apply_submission(papers, self._payload())
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual((papers / "paper.md").read_text(encoding="utf-8"), expected)
+
+    def test_rejects_when_the_answer_area_is_already_filled(self):
+        filled = PAPER.replace("_1_ , _1_", "1-1 , 2-1", 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp), filled)
+            before = (papers / "paper.md").read_bytes()
+            result = apply_submission(papers, self._payload())
+            self.assertEqual(result.status_code, 409)
+            self.assertEqual((papers / "paper.md").read_bytes(), before)
+
+    def test_rejects_path_traversal_paper_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp))
+            for evil in ("../evil.md", "a/b.md", "..", "paper.md:stream"):
+                result = apply_submission(papers, self._payload(paper=evil))
+                self.assertEqual(result.status_code, 400, evil)
+
+    def test_rejects_unknown_paper_with_404(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp))
+            result = apply_submission(papers, self._payload(paper="missing.md"))
+            self.assertEqual(result.status_code, 404)
+
+    def test_rejects_bad_values_and_missing_or_duplicate_numbers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp))
+            before = (papers / "paper.md").read_bytes()
+            bad_bodies = [
+                self._payload(answers=[{"number": 1, "value": "9", "uncertain": False}]),
+                self._payload(answers=[{"number": 3, "value": "1123", "uncertain": False},
+                                       {"number": 1, "value": "1", "uncertain": False},
+                                       {"number": 2, "value": "2", "uncertain": False}]),
+                self._payload(answers=[{"number": 1, "value": "1", "uncertain": False},
+                                       {"number": 1, "value": "2", "uncertain": False}]),
+                self._payload(answers=[{"number": 1, "value": "1", "uncertain": False}]),
+                b"not json",
+            ]
+            for body in bad_bodies:
+                result = apply_submission(papers, body)
+                self.assertEqual(result.status_code, 400, body)
+            self.assertEqual((papers / "paper.md").read_bytes(), before)
+
+    def test_rejects_oversized_bodies_before_parsing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            papers = _papers_dir(pathlib.Path(tmp))
+            result = apply_submission(papers, b"x" * (MAX_REQUEST_BYTES + 1))
+            self.assertEqual(result.status_code, 413)
 
 
 if __name__ == "__main__":
