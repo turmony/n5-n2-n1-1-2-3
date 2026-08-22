@@ -143,3 +143,35 @@ def find_answer_block(text: str) -> tuple[int, int, str] | None:
 def is_blank_answer_area(inner: str) -> bool:
     """True when the area holds only placeholders, headers, and whitespace."""
     return _REAL_ANSWER.search(inner) is None
+
+
+def render_answer_area(answers: dict[int, tuple[str, bool]], parts: tuple[PaperPart, ...]) -> str:
+    """Build the answer-area inner text in the quiz-grade compatible format.
+
+    ``answers`` maps question number to ``(value, uncertain)``.  Uncertain
+    answers get ``*`` before the question number, matching historical papers.
+    """
+    questions_by_number = {number: (value, uncertain) for number, (value, uncertain) in answers.items()}
+    blocks: list[str] = []
+    for ordinal, _title, numbers in parts:
+        if not numbers:
+            continue
+        tokens = []
+        for number in numbers:
+            value, uncertain = questions_by_number[number]
+            token = f"{number}-{value}"
+            if uncertain:
+                token = f"*{token}"
+            tokens.append(token)
+        has_ordering = any(len(value) > 1 for value, _ in (questions_by_number[n] for n in numbers))
+        # 单题部分只显示题号（如「（3，…）」），与历史试卷格式一致。
+        range_str = str(numbers[0]) if numbers[0] == numbers[-1] else f"{numbers[0]}–{numbers[-1]}"
+        if has_ordering:
+            header = f"第{ordinal}部分（{range_str}，请提交完整语序，如“{numbers[0]}：1234”）："
+        else:
+            header = f"第{ordinal}部分（{range_str}）："
+        lines = [header]
+        for start in range(0, len(tokens), 5):
+            lines.append(" , ".join(tokens[start : start + 5]))
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks) + "\n"

@@ -6,6 +6,7 @@ from jlpt_notes.reader.submissions import (
     find_answer_block,
     is_blank_answer_area,
     parse_paper_structure,
+    render_answer_area,
 )
 
 PAPER = """# 测试卷
@@ -144,6 +145,26 @@ class AnswerBlockTests(unittest.TestCase):
             is_blank_answer_area("第一部分（1–20）：\n1-__ , 2-__ , 21-____\n")
         )
         self.assertFalse(is_blank_answer_area("1-3 , 21-1234\n"))
+
+
+class RenderAnswerAreaTests(unittest.TestCase):
+    def test_renders_parts_with_five_answers_per_line_and_star_prefix(self):
+        _, parts = parse_paper_structure(PAPER)
+        answers = {1: ("1", False), 2: ("3", True), 3: ("2314", False)}
+        inner = render_answer_area(answers, parts)
+        self.assertEqual(
+            inner,
+            "第一部分（1–2）：\n1-1 , *2-3\n\n第二部分（3，请提交完整语序，如“3：1234”）：\n3-2314\n",
+        )
+
+    def test_wraps_after_every_five_answers(self):
+        text = "# 卷\n\n## 第一部分（1–6）\n\n" + "".join(
+            f"### {n}. 题（　）。\n\n1. 甲\n2. 乙\n3. 丙\n4. 丁\n\n" for n in range(1, 7)
+        )
+        _, parts = parse_paper_structure(text)
+        answers = {n: (str(n % 4 + 1), False) for n in range(1, 7)}
+        inner = render_answer_area(answers, parts)
+        self.assertIn("1-2 , 2-3 , 3-4 , 4-1 , 5-2\n6-3\n", inner)
 
 
 if __name__ == "__main__":
