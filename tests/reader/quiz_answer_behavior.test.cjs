@@ -15,7 +15,7 @@ test("choice selection toggles a single option", () => {
   assert.equal(state.answers[1].value, "4");
 });
 
-test("ordering selection appends in click order and retracts with renumbering", () => {
+test("ordering selection appends in click order and retracts without renumbering", () => {
   const state = core.createQuizState([{ number: 3, kind: "ordering", options: 4 }]);
   core.selectChoice(state, 3, 2);
   core.selectChoice(state, 3, 3);
