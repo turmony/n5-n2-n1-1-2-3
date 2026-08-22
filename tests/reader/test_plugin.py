@@ -719,6 +719,38 @@ class QuizStateInjectionTests(unittest.TestCase):
 
             self.assertEqual(state["answered"], True)
 
+    def test_nested_paper_paths_carry_no_quiz_state(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            papers = docs / "quizzes" / "papers" / "2026"
+            papers.mkdir(parents=True)
+            (papers / "paper.md").write_text(_PLUGIN_PAPER, encoding="utf-8")
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            rendered = "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html"))
+            self.assertIn("問題一", rendered)
+            self.assertNotIn("jlpt-quiz-state", rendered)
+
+    def test_paper_without_answer_area_still_injects_state_as_unanswered(self) -> None:
+        without_answer_area = _PLUGIN_PAPER.split("## 答案填写区")[0]
+        self.assertNotIn("答案填写区", without_answer_area)
+        with TemporaryDirectory() as directory:
+            site = self._build_paper_site(directory, without_answer_area)
+
+            rendered = _site_page_containing(site, "問題一")
+            state = _quiz_state_from(rendered)
+
+            self.assertIn('class="jlpt-quiz-state"', rendered)
+            self.assertEqual(state["answered"], False)
+            self.assertEqual(
+                state["questions"],
+                [
+                    {"number": 1, "kind": "choice", "options": 4},
+                    {"number": 2, "kind": "choice", "options": 4},
+                    {"number": 3, "kind": "ordering", "options": 4},
+                ],
+            )
+
     def test_non_paper_pages_carry_no_quiz_state(self) -> None:
         with TemporaryDirectory() as directory:
             docs, config_file, site = _write_reader_config(Path(directory))
