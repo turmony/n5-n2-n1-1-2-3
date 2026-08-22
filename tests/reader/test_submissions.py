@@ -2,7 +2,11 @@
 
 import unittest
 
-from jlpt_notes.reader.submissions import parse_paper_structure
+from jlpt_notes.reader.submissions import (
+    find_answer_block,
+    is_blank_answer_area,
+    parse_paper_structure,
+)
 
 PAPER = """# 测试卷
 
@@ -90,6 +94,28 @@ class ParsePaperStructureTests(unittest.TestCase):
             [(ordinal, numbers) for ordinal, _, numbers in parts],
             [("三", (3, 4))],
         )
+
+
+class AnswerBlockTests(unittest.TestCase):
+    def test_finds_the_inner_text_of_the_answer_fence(self):
+        inner = find_answer_block(PAPER)[2]
+        self.assertIsNotNone(inner)
+        self.assertIn("_1_", inner)
+
+    def test_returns_none_when_the_heading_or_fence_is_missing(self):
+        self.assertIsNone(find_answer_block("# 卷\n\n没有答案区\n"))
+        self.assertIsNone(find_answer_block("# 卷\n\n## 答案填写区\n\n没有围栏\n"))
+
+    def test_placeholder_only_area_is_blank(self):
+        self.assertTrue(is_blank_answer_area("第一部分（1–2）：\n_1_ , _1_\n\n"))
+        self.assertTrue(is_blank_answer_area("\n  \n"))
+
+    def test_any_real_answer_makes_the_area_not_blank(self):
+        self.assertFalse(is_blank_answer_area("1-1 , 2-3\n"))
+        self.assertFalse(is_blank_answer_area("_1_\n*3-1234\n"))
+
+    def test_part_headers_are_not_mistaken_for_answers(self):
+        self.assertTrue(is_blank_answer_area("第一部分（1–20）：\n_1_ , _1_\n"))
 
 
 if __name__ == "__main__":

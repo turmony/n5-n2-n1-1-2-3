@@ -24,6 +24,7 @@ SUBMIT_PATH = "/reader/submit-answers"
 _PART_HEADING = re.compile(r"^##\s*第(.+?)部分")
 _QUESTION_HEADING = re.compile(r"^#{3,4}\s*(\d+)[\.．]")
 _OPTION_LINE = re.compile(r"^\d+[\.．]\s+\S")
+_REAL_ANSWER = re.compile(r"^\s*\*?\d+-\d", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -96,3 +97,44 @@ def parse_paper_structure(text: str) -> tuple[tuple[PaperQuestion, ...], tuple[P
         index += 1
     flush()
     return tuple(questions), tuple(parts)
+
+
+def find_answer_block(text: str) -> tuple[int, int, str] | None:
+    """Locate the fenced code block under the answer-area heading.
+
+    Returns ``(block_start, block_end, inner)`` covering the whole fence
+    including the ``` markers, or None when the heading or fence is absent.
+    """
+    lines = text.splitlines(keepends=True)
+    heading_index = None
+    for i, line in enumerate(lines):
+        if line.strip() == ANSWER_HEADING:
+            heading_index = i
+            break
+    if heading_index is None:
+        return None
+    fence_start = None
+    for i in range(heading_index + 1, len(lines)):
+        if lines[i].startswith("#"):
+            break
+        if lines[i].lstrip().startswith("```"):
+            fence_start = i
+            break
+    if fence_start is None:
+        return None
+    fence_end = None
+    for i in range(fence_start + 1, len(lines)):
+        if lines[i].lstrip().startswith("```"):
+            fence_end = i
+            break
+    if fence_end is None:
+        return None
+    inner = "".join(lines[fence_start + 1 : fence_end])
+    start = sum(len(line) for line in lines[: fence_start])
+    end = start + len(lines[fence_start]) + len(inner) + len(lines[fence_end])
+    return start, end, inner
+
+
+def is_blank_answer_area(inner: str) -> bool:
+    """True when the area holds only placeholders, headers, and whitespace."""
+    return _REAL_ANSWER.search(inner) is None
