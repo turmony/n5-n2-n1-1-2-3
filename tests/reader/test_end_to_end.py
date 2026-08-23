@@ -3,11 +3,13 @@ from html import unescape
 import http.client
 import json
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 import unittest
 
 from jlpt_notes.reader.builder import SiteStore, build_site
 from jlpt_notes.reader.server import ReadOnlyServer
+from jlpt_notes.reader.submissions import apply_submission
 
 
 def repository_state(root: Path) -> dict[str, tuple[int, int, str]]:
@@ -224,6 +226,134 @@ class ReaderEndToEndTests(unittest.TestCase):
                 self.assertIn("更新后正文", body.decode("utf-8"))
                 self.assertFalse((session / "site-3").exists())
                 self.assertTrue(failed.log_path and failed.log_path.is_file())
+            finally:
+                server.stop()
+                store.close()
+
+
+_SUBMISSION_PAPER = """# 测试卷
+
+## 作答说明
+
+- 每题只有一个最佳答案。
+
+## 第一部分：形式选择（1–2）
+
+### 1. 問題一（　）。
+
+1. 甲
+2. 乙
+3. 丙
+4. 丁
+
+### 2. 問題二（　）。
+
+1. 甲
+2. 乙
+3. 丙
+4. 丁
+
+## 第二部分：排序（3）
+
+### 3. 昨日、＿＿ ★ ＿＿ ＿＿ 話しました。
+
+1. 先輩が
+2. 教えてくれた
+3. 店について
+4. 友だちに
+
+## 答案填写区
+
+```text
+第一部分（1–2）：
+_1_ , _1_
+
+第二部分（3，请提交完整语序，如“3：1234”）：
+_1_
+```
+"""
+
+
+def _quiz_state_of(page_html: str) -> dict:
+    match = re.search(r'data-quiz-state="([^"]+)"', page_html)
+    assert match, "page is missing quiz state"
+    return json.loads(unescape(match.group(1)))
+
+
+class QuizSubmissionEndToEndTests(unittest.TestCase):
+    def test_submit_updates_the_paper_and_the_page_turns_read_only(self) -> None:
+        project = Path(__file__).resolve().parents[2]
+        payload = json.dumps({
+            "paper": "paper.md",
+            "answers": [
+                {"number": 1, "value": "1", "uncertain": False},
+                {"number": 2, "value": "3", "uncertain": True},
+                {"number": 3, "value": "2314", "uncertain": False},
+            ],
+        }).encode("utf-8")
+        with TemporaryDirectory() as directory:
+            base = Path(directory)
+            notes = base / "notes"
+            papers = notes / "quizzes" / "papers"
+            papers.mkdir(parents=True)
+            (papers / "paper.md").write_text(_SUBMISSION_PAPER, encoding="utf-8")
+            grammar = notes / "grammar"
+            grammar.mkdir()
+            (grammar / "N5-G-0001.md").write_text(
+                '---\n{"id":"N5-G-0001","level":"N5","kind":"grammar",'
+                '"title":"～です","tags":["判断"]}\n---\n\n# 核心\n正式卡正文\n',
+                encoding="utf-8",
+            )
+            before = repository_state(notes)
+            session = base / "session"
+            session.mkdir()
+            first = build_site(notes, project / "reader/mkdocs.yml", session / "site-1")
+            self.assertTrue(first.success, first.error)
+            route = _route_containing(session / "site-1", "問題一")
+            store = SiteStore(session)
+            store.activate(session / "site-1")
+
+            def submit(body: bytes):
+                result = apply_submission(papers, body)
+                return result.status_code, result.body
+
+            server = ReadOnlyServer(store, "127.0.0.1", 0, submit=submit)
+            server.start()
+            port = server.bound_port
+            try:
+                status, _, body = _request(port, "GET", route)
+                self.assertEqual(status, 200)
+                page = body.decode("utf-8")
+                self.assertEqual(_quiz_state_of(page)["answered"], False)
+
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                connection.request("POST", "/reader/submit-answers", body=payload)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                connection.close()
+
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                connection.request("POST", "/reader/submit-answers", body=payload)
+                response = connection.getresponse()
+                self.assertEqual(response.status, 409)
+                connection.close()
+
+                saved = (papers / "paper.md").read_text(encoding="utf-8")
+                self.assertIn("1-1 , *2-3", saved)
+                self.assertIn("3-2314", saved)
+
+                second = build_site(notes, project / "reader/mkdocs.yml", session / "site-2")
+                self.assertTrue(second.success, second.error)
+                store.activate(session / "site-2")
+                status, _, body = _request(port, "GET", route)
+                self.assertEqual(status, 200)
+                page = body.decode("utf-8")
+                self.assertEqual(_quiz_state_of(page)["answered"], True)
+                self.assertIn("1-1 , *2-3", unescape(page))
+
+                after = repository_state(notes)
+                changed = {path for path in after if after[path] != before.get(path)}
+                self.assertEqual(changed, {"quizzes/papers/paper.md"})
             finally:
                 server.stop()
                 store.close()

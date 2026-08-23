@@ -1,5 +1,6 @@
 import json
 from hashlib import sha256
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -123,6 +124,7 @@ def _write_reader_config(base: Path) -> tuple[Path, Path, Path]:
     assets.mkdir()
     (assets / "reader.css").write_text("", encoding="utf-8")
     (assets / "reader.js").write_text("", encoding="utf-8")
+    (assets / "quiz-answer.js").write_text("", encoding="utf-8")
     config_file = base / "mkdocs.yml"
     config_file.write_text(
         "site_name: JLPT\ntheme:\n  name: material\nmarkdown_extensions:\n  - pymdownx.superfences\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n",
@@ -284,6 +286,7 @@ class ReaderPluginTests(unittest.TestCase):
             assets.mkdir()
             (assets / "reader.css").write_text(".jlpt-meta{}", encoding="utf-8")
             (assets / "reader.js").write_text("", encoding="utf-8")
+            (assets / "quiz-answer.js").write_text("", encoding="utf-8")
             config_file = base / "mkdocs.yml"
             config_file.write_text(
                 "site_name: JLPT\ntheme:\n  name: material\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n  - search\n",
@@ -320,6 +323,7 @@ class ReaderPluginTests(unittest.TestCase):
             assets.mkdir()
             (assets / "reader.css").write_text("", encoding="utf-8")
             (assets / "reader.js").write_text("", encoding="utf-8")
+            (assets / "quiz-answer.js").write_text("", encoding="utf-8")
             config_file = base / "mkdocs.yml"
             config_file.write_text(
                 "site_name: JLPT\ntheme:\n  name: material\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n",
@@ -351,6 +355,7 @@ class ReaderPluginTests(unittest.TestCase):
             assets.mkdir()
             (assets / "reader.css").write_text("", encoding="utf-8")
             (assets / "reader.js").write_text("", encoding="utf-8")
+            (assets / "quiz-answer.js").write_text("", encoding="utf-8")
             config_file = base / "mkdocs.yml"
             config_file.write_text(
                 "site_name: JLPT\ntheme:\n  name: material\nplugins:\n  - jlpt_reader:\n      assets_dir: assets\n",
@@ -626,6 +631,134 @@ class ReaderPluginTests(unittest.TestCase):
         self.assertIn(".jlpt-card-pager__label", css)
         self.assertIn(".jlpt-card-pager__title", css)
         self.assertIn(".jlpt-card-pager__link--next", css)
+
+
+_PLUGIN_PAPER = """# 测试卷
+
+## 第一部分：形式选择（1–2）
+
+### 1. 問題一（　）。
+
+1. 甲
+2. 乙
+3. 丙
+4. 丁
+
+### 2. 問題二（　）。
+
+1. 甲
+2. 乙
+3. 丙
+4. 丁
+
+## 第二部分：排序（3）
+
+### 3. 昨日、＿＿ ★ ＿＿ ＿＿ 話しました。
+
+1. 先輩が
+2. 教えてくれた
+3. 店について
+4. 友だちに
+
+## 答案填写区
+
+```text
+第一部分（1–2）：
+_1_ , _1_
+
+第二部分（3，请提交完整语序，如“3：1234”）：
+_1_
+```
+"""
+
+
+def _quiz_state_from(html: str) -> dict:
+    match = re.search(r'data-quiz-state="([^"]+)"', html)
+    assert match is not None, "page is missing quiz state"
+    return json.loads(unescape(match.group(1)))
+
+
+class QuizStateInjectionTests(unittest.TestCase):
+    def _build_paper_site(self, directory: str, paper_text: str) -> Path:
+        docs, config_file, site = _write_reader_config(Path(directory))
+        papers = docs / "quizzes" / "papers"
+        papers.mkdir(parents=True)
+        (papers / "paper.md").write_text(paper_text, encoding="utf-8")
+        build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+        return site
+
+    def test_paper_page_carries_quiz_state_with_questions_and_blank_flag(self) -> None:
+        with TemporaryDirectory() as directory:
+            site = self._build_paper_site(directory, _PLUGIN_PAPER)
+
+            rendered = _site_page_containing(site, "問題一")
+            state = _quiz_state_from(rendered)
+
+            self.assertIn('class="jlpt-quiz-state"', rendered)
+            self.assertIn("jlpt-quiz-state\" data-quiz-state", rendered)
+            self.assertRegex(rendered, r'<div class="jlpt-quiz-state"[^>]*hidden[^>]*>')
+
+            self.assertEqual(state["paper"], "paper.md")
+            self.assertEqual(state["answered"], False)
+            self.assertEqual(
+                state["questions"],
+                [
+                    {"number": 1, "kind": "choice", "options": 4},
+                    {"number": 2, "kind": "choice", "options": 4},
+                    {"number": 3, "kind": "ordering", "options": 4},
+                ],
+            )
+            self.assertEqual([part["numbers"] for part in state["parts"]], [[1, 2], [3]])
+
+    def test_filled_answer_area_marks_the_page_answered(self) -> None:
+        filled = _PLUGIN_PAPER.replace("_1_ , _1_", "1-1 , 2-1", 1)
+        with TemporaryDirectory() as directory:
+            site = self._build_paper_site(directory, filled)
+
+            state = _quiz_state_from(_site_page_containing(site, "問題一"))
+
+            self.assertEqual(state["answered"], True)
+
+    def test_nested_paper_paths_carry_no_quiz_state(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            papers = docs / "quizzes" / "papers" / "2026"
+            papers.mkdir(parents=True)
+            (papers / "paper.md").write_text(_PLUGIN_PAPER, encoding="utf-8")
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            rendered = "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html"))
+            self.assertIn("問題一", rendered)
+            self.assertNotIn("jlpt-quiz-state", rendered)
+
+    def test_paper_without_answer_area_still_injects_state_as_unanswered(self) -> None:
+        without_answer_area = _PLUGIN_PAPER.split("## 答案填写区")[0]
+        self.assertNotIn("答案填写区", without_answer_area)
+        with TemporaryDirectory() as directory:
+            site = self._build_paper_site(directory, without_answer_area)
+
+            rendered = _site_page_containing(site, "問題一")
+            state = _quiz_state_from(rendered)
+
+            self.assertIn('class="jlpt-quiz-state"', rendered)
+            self.assertEqual(state["answered"], False)
+            self.assertEqual(
+                state["questions"],
+                [
+                    {"number": 1, "kind": "choice", "options": 4},
+                    {"number": 2, "kind": "choice", "options": 4},
+                    {"number": 3, "kind": "ordering", "options": 4},
+                ],
+            )
+
+    def test_non_paper_pages_carry_no_quiz_state(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N5-G-0001", "N5", "～です")
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            rendered = "\n".join(path.read_text(encoding="utf-8") for path in site.rglob("*.html"))
+            self.assertNotIn("jlpt-quiz-state", rendered)
 
 
 if __name__ == "__main__":
