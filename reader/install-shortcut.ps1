@@ -11,8 +11,15 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot -Parent)).Path
 
 if ([string]::IsNullOrWhiteSpace($Pythonw)) {
-    $python = (Get-Command python.exe -ErrorAction Stop).Source
-    $Pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
+    # Prefer the project venv: a PATH python may live in a disposable tool cache
+    # (e.g. codex-runtimes) whose site-packages can be wiped at any time.
+    $venvPythonw = Join-Path $projectRoot '.venv\Scripts\pythonw.exe'
+    if (Test-Path -LiteralPath $venvPythonw -PathType Leaf) {
+        $Pythonw = $venvPythonw
+    } else {
+        $python = (Get-Command python.exe -ErrorAction Stop).Source
+        $Pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
+    }
 }
 if (-not (Test-Path -LiteralPath $Pythonw -PathType Leaf)) {
     throw "pythonw.exe was not found: $Pythonw"
