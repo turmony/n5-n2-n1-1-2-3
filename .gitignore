@@ -4,3 +4,4 @@ __pycache__/
 *.egg-info/
 jlpt-notes/backups/*.zip
 .worktrees/
+.claude/worktrees/
