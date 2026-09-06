@@ -1,4 +1,4 @@
-"""对真实 N4 覆盖卷 1–6 整卷跑校验器。
+"""对真实 N4 覆盖卷整卷跑校验器。
 预期：全部报错逐条归因——解析器 bug 修复或白名单登记，无未归因报错；
 卷五/卷六各含 7 条良性翻译漂移白名单条目。
 卷四 Q1/Q21/Q22 为语义缺陷（双正确/双自然语序/参考语序不成立），机械层
@@ -20,6 +20,9 @@ KNOWN = json.loads((TESTS_DIR / "fixtures/known-real-findings.json").read_text(e
 PAPERS = sorted(QUIZES.glob("papers/2026-*-n4-coverage-test-*.md"))
 assert PAPERS, "未找到 N4 覆盖卷"
 
+# 第七卷是 80 题广覆盖卷；其题型配比与前六卷不同。
+EXPECTED_COUNTS = {"2026-08-22-n4-coverage-test-7": (64, 16, 0)}
+
 # 语法卡 N4-G-0001～0120 在主检出中尚未入库（untracked），git worktree 里不存在；
 # 缺卡时 C4 会全量误报。跑 smoke 前须从主检出只读同步到本 worktree（不入库），
 # 详见 fixtures/known-real-findings.md 的运行前提一节
@@ -31,7 +34,8 @@ assert any((REPO_ROOT / "jlpt-notes/grammar/n4").glob("N*-G-*.md")), (
 @pytest.mark.parametrize("paper", PAPERS, ids=lambda p: p.stem)
 def test_real_paper_no_unexpected_errors(paper):
     answers = QUIZES / "answers" / (paper.stem + "-answers.md")
-    findings = run_validation(paper, answers, REPO_ROOT, (20, 7, 7))
+    expected = EXPECTED_COUNTS.get(paper.stem, (20, 7, 7))
+    findings = run_validation(paper, answers, REPO_ROOT, expected)
     errors = [f for f in findings if f.severity == "error"]
     known = KNOWN.get(paper.stem, [])
     unexpected = []
