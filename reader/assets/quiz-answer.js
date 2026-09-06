@@ -2,6 +2,7 @@
   "use strict";
 
   const DRAFT_PREFIX = "jlpt-quiz-draft:";
+  let activeQuizScrollCleanup = null;
 
   function createQuizState(questions) {
     const answers = {};
@@ -40,6 +41,43 @@
 
   function answeredCount(state) {
     return Object.values(state.answers).filter((answer) => answer.value.length > 0).length;
+  }
+
+  function questionProgress(state, numbers, currentNumber) {
+    return numbers.map((number) => {
+      const answer = state.answers[number];
+      return {
+        number: number,
+        answered: Boolean(answer && answer.value),
+        current: number === currentNumber,
+        uncertain: Boolean(answer && answer.uncertain),
+      };
+    });
+  }
+
+  function questionProgressLabel(progress) {
+    const labels = [`第 ${progress.number} 题`];
+    if (progress.current) labels.push("当前题");
+    if (progress.answered) labels.push("已答");
+    if (progress.uncertain) labels.push("标记不确定");
+    return labels.length === 1 ? `跳转到${labels[0]}` : labels.join("，");
+  }
+
+  function currentQuestionNumber(positions) {
+    let number = positions.length ? positions[0].number : 0;
+    positions.forEach((position) => {
+      if (position.top <= 132) number = position.number;
+    });
+    return number;
+  }
+
+  function replaceScrollListener(previousCleanup, target, listener) {
+    if (typeof previousCleanup === "function") previousCleanup();
+    if (typeof listener !== "function") return null;
+    target.addEventListener("scroll", listener, { passive: true });
+    return function () {
+      target.removeEventListener("scroll", listener);
+    };
   }
 
   function buildPayload(state, paper) {
@@ -85,6 +123,10 @@
     toggleUncertain,
     isComplete,
     answeredCount,
+    questionProgress,
+    questionProgressLabel,
+    currentQuestionNumber,
+    replaceScrollListener,
     buildPayload,
     serializeDraft,
     restoreDraft,
@@ -95,6 +137,7 @@
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
   function initQuizPage() {
+    activeQuizScrollCleanup = core.replaceScrollListener(activeQuizScrollCleanup, window, null);
     const marker = document.querySelector(".jlpt-quiz-state");
     if (!marker) return;
     let config;
@@ -120,6 +163,17 @@
       const match = heading.textContent.match(/^\s*(\d+)[\.．]/);
       if (match) byNumber[Number(match[1])] = heading;
     }
+
+    const progressRail = document.createElement("nav");
+    progressRail.className = "jlpt-quiz-progress";
+    progressRail.setAttribute("aria-label", "题号进度");
+    const progressLabel = document.createElement("span");
+    progressLabel.className = "jlpt-quiz-progress__label";
+    progressLabel.textContent = "题号";
+    const progressList = document.createElement("div");
+    progressList.className = "jlpt-quiz-progress__list";
+    progressRail.append(progressLabel, progressList);
+    marker.insertAdjacentElement("afterend", progressRail);
 
     // 选项 OL 不一定紧邻标题（阅读/对话题中间隔有正文段落），
     // 向后遍历到下一个题目标题或 h2 部分标题为止，取区间内首个 OL；
@@ -176,9 +230,17 @@
       });
       list.insertAdjacentElement("afterend", toggle);
       question._elements = { items, toggle };
+      const progressButton = document.createElement("a");
+      progressButton.className = "jlpt-quiz-progress__item";
+      progressButton.href = `#${heading.id}`;
+      progressButton.textContent = String(question.number);
+      progressButton.setAttribute("aria-label", `跳转到第 ${question.number} 题`);
+      progressList.appendChild(progressButton);
+      question._elements.progress = progressButton;
     });
 
     function paint() {
+      const progress = core.questionProgress(state, config.questions.map((question) => question.number), currentNumber);
       config.questions.forEach((question) => {
         const answer = state.answers[question.number];
         const elements = question._elements;
@@ -200,7 +262,30 @@
           }
         });
         elements.toggle.classList.toggle("active", answer.uncertain);
+        const itemState = progress.find((item) => item.number === question.number);
+        if (elements.progress && itemState) {
+          elements.progress.classList.toggle("answered", itemState.answered);
+          elements.progress.classList.toggle("current", itemState.current);
+          elements.progress.classList.toggle("uncertain", itemState.uncertain);
+          elements.progress.setAttribute("aria-label", core.questionProgressLabel(itemState));
+          if (itemState.current) elements.progress.setAttribute("aria-current", "step");
+          else elements.progress.removeAttribute("aria-current");
+        }
       });
+    }
+
+    let currentNumber = config.questions[0] ? config.questions[0].number : 0;
+
+    function refreshCurrentQuestion() {
+      const positions = config.questions.flatMap((question) => {
+        const heading = byNumber[question.number];
+        return heading ? [{ number: question.number, top: heading.getBoundingClientRect().top }] : [];
+      });
+      const nextNumber = core.currentQuestionNumber(positions);
+      if (nextNumber !== currentNumber) {
+        currentNumber = nextNumber;
+        paint();
+      }
     }
 
     const bar = document.createElement("div");
@@ -259,6 +344,12 @@
 
     paint();
     refreshSubmitButton();
+    refreshCurrentQuestion();
+    activeQuizScrollCleanup = core.replaceScrollListener(
+      activeQuizScrollCleanup,
+      window,
+      refreshCurrentQuestion,
+    );
   }
 
   document$.subscribe(function () { initQuizPage(); });

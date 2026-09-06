@@ -233,7 +233,8 @@
       element: element,
       pageKey: element ? element.dataset.pageKey || "" : "",
       pageHash: element ? element.dataset.pageHash || "" : "",
-      generation: element ? element.dataset.generation || "" : ""
+      generation: element ? element.dataset.generation || "" : "",
+      readerType: element ? element.dataset.readerType || "" : ""
     };
   }
 
@@ -395,6 +396,35 @@
     }
     const content = document.querySelector(".md-content__inner");
     if (content) content.prepend(controls);
+
+    const previousOverview = document.querySelector(".jlpt-grammar-overview");
+    if (previousOverview) previousOverview.remove();
+    if (jlptPageState.readerType === "grammar" && content) {
+      const sections = Array.from(content.querySelectorAll("h2"));
+      const fields = sections.flatMap(function (heading) {
+        const label = (heading.textContent || "").trim();
+        if (label !== "核心" && label !== "接续") return [];
+        const value = heading.nextElementSibling;
+        if (!value || !value.textContent.trim()) return [];
+        return [{ label: label, value: value.textContent.trim() }];
+      });
+      if (fields.length) {
+        const overview = document.createElement("section");
+        overview.className = "jlpt-grammar-overview";
+        overview.setAttribute("aria-label", "语法速览");
+        fields.forEach(function (field) {
+          const row = document.createElement("div");
+          const label = document.createElement("span");
+          const value = document.createElement("p");
+          label.textContent = field.label;
+          value.textContent = field.value;
+          row.append(label, value);
+          overview.appendChild(row);
+        });
+        const meta = content.querySelector(".jlpt-meta");
+        (meta || content.querySelector("h1")).insertAdjacentElement("afterend", overview);
+      }
+    }
   }
 
   async function checkReaderVersion() {

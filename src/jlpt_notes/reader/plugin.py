@@ -198,7 +198,8 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             '<div class="jlpt-page-state" aria-hidden="true" '
             f'data-page-key="{escape(page.file.url, quote=True)}" '
             f'data-page-hash="{source.content_hash}" '
-            f'data-generation="{self._generation_version}"></div>'
+            f'data-generation="{self._generation_version}" '
+            f'data-reader-type="{escape(source.metadata.content_type, quote=True)}"></div>'
         )
         neighbours = self._pager_neighbours.get(page.file.src_uri)
         pager = ""

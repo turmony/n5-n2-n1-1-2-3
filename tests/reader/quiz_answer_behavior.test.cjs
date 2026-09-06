@@ -106,3 +106,58 @@ test("answeredCount counts only answered questions", () => {
   core.selectChoice(state, 1, 3);
   assert.equal(core.answeredCount(state), 1);
 });
+
+test("question progress derives answered, current, and uncertain states", () => {
+  const state = core.createQuizState([
+    { number: 1, kind: "choice", options: 4 },
+    { number: 2, kind: "choice", options: 4 },
+    { number: 3, kind: "choice", options: 4 },
+  ]);
+  core.selectChoice(state, 1, 2);
+  core.selectChoice(state, 2, 3);
+  core.toggleUncertain(state, 2);
+
+  assert.deepEqual(core.questionProgress(state, [1, 2, 3], 3), [
+    { number: 1, answered: true, current: false, uncertain: false },
+    { number: 2, answered: true, current: false, uncertain: true },
+    { number: 3, answered: false, current: true, uncertain: false },
+  ]);
+});
+
+test("question progress labels expose current, answered, and uncertain states", () => {
+  assert.equal(
+    core.questionProgressLabel({ number: 2, answered: true, current: true, uncertain: true }),
+    "第 2 题，当前题，已答，标记不确定"
+  );
+  assert.equal(
+    core.questionProgressLabel({ number: 3, answered: false, current: false, uncertain: false }),
+    "跳转到第 3 题"
+  );
+});
+
+test("scrolling back above all questions resets progress to the first question", () => {
+  assert.equal(core.currentQuestionNumber([{ number: 1, top: -200 }, { number: 2, top: 100 }]), 2);
+  assert.equal(core.currentQuestionNumber([{ number: 1, top: 200 }, { number: 2, top: 500 }]), 1);
+  assert.equal(core.currentQuestionNumber([]), 0);
+});
+
+test("replacing the quiz scroll listener removes the previous page listener", () => {
+  const calls = [];
+  const target = {
+    addEventListener: (_name, handler) => calls.push(["add", handler]),
+    removeEventListener: (_name, handler) => calls.push(["remove", handler]),
+  };
+  const first = () => {};
+  const second = () => {};
+
+  const firstCleanup = core.replaceScrollListener(null, target, first);
+  const secondCleanup = core.replaceScrollListener(firstCleanup, target, second);
+  secondCleanup();
+
+  assert.deepEqual(calls, [
+    ["add", first],
+    ["remove", first],
+    ["add", second],
+    ["remove", second],
+  ]);
+});

@@ -710,6 +710,16 @@ class QuizStateInjectionTests(unittest.TestCase):
             )
             self.assertEqual([part["numbers"] for part in state["parts"]], [[1, 2], [3]])
 
+    def test_grammar_page_exposes_its_reader_type_for_the_speed_overview(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N5-G-0001", "N5", "～です")
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            rendered = _site_page_containing(site, "正文。")
+
+            self.assertIn('data-reader-type="grammar"', rendered)
+
     def test_filled_answer_area_marks_the_page_answered(self) -> None:
         filled = _PLUGIN_PAPER.replace("_1_ , _1_", "1-1 , 2-1", 1)
         with TemporaryDirectory() as directory:
