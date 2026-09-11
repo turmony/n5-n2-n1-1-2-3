@@ -6,3 +6,4 @@ __pycache__/
 jlpt-notes/backups/*.zip
 .worktrees/
 .claude/worktrees/
+.firecrawl/
