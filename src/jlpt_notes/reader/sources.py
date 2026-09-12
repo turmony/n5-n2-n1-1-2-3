@@ -109,13 +109,14 @@ def build_catalog_page(pages: tuple[SourcePage, ...]) -> SourcePage:
     )
 
 
-def iter_supported_visible_source_files(root: Path) -> tuple[Path, ...]:
-    """Return the single supported-visible source set used by the reader.
+def iter_supported_visible_source_files(
+    root: Path, *, suffixes: frozenset[str] = frozenset({".md", ".jsonl"})
+) -> tuple[Path, ...]:
+    """Return visible files of the requested types, defaulting to documents.
 
     Files are eligible when they are non-symlink regular files below *root*,
-    have a Markdown or JSONL suffix, and have no hidden path component.  Both
-    rendering discovery and change polling use this function so every rendered
-    file can trigger a rebuild when it changes.
+    have a requested suffix, and have no hidden path component. Rendering and
+    polling share this traversal for both documents and raster assets.
     """
     resolved_root = root.resolve(strict=True)
     paths: list[Path] = []
@@ -136,11 +137,18 @@ def iter_supported_visible_source_files(root: Path) -> tuple[Path, ...]:
         )
         for name in sorted(file_names, key=lambda name: (name.casefold(), name)):
             path = current / name
-            if name.startswith(".") or path.is_symlink() or path.suffix.lower() not in {".md", ".jsonl"}:
+            if name.startswith(".") or path.is_symlink() or path.suffix.lower() not in suffixes:
                 continue
             if path.is_file() and _resolved_below(path, resolved_root) is not None:
                 paths.append(path)
     return tuple(paths)
+
+
+def iter_visible_images(root: Path) -> tuple[Path, ...]:
+    """Discover raster assets using the same containment and visibility rules."""
+    return iter_supported_visible_source_files(
+        root, suffixes=frozenset({".png", ".jpg", ".jpeg", ".gif", ".webp"})
+    )
 
 
 def _is_directory_link(path: Path) -> bool:

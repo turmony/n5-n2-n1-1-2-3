@@ -9,7 +9,7 @@ from threading import Event, Lock, Thread, current_thread
 import time
 from typing import Callable
 
-from .sources import iter_supported_visible_source_files
+from .sources import iter_supported_visible_source_files, iter_visible_images
 
 
 @dataclass(frozen=True, order=True)
@@ -22,7 +22,7 @@ class FileStamp:
 
 
 def snapshot_sources(root: Path) -> tuple[FileStamp, ...]:
-    """Return a stable stamp for each visible Markdown or JSONL source.
+    """Return stable stamps for visible documents and raster images.
 
     The function only enumerates and stats files.  It does not follow symlinks
     or create any files, so observing a learner's source directory is safe.
@@ -31,7 +31,7 @@ def snapshot_sources(root: Path) -> tuple[FileStamp, ...]:
     """
     resolved = root.resolve(strict=True)
     stamps: list[FileStamp] = []
-    for path in iter_supported_visible_source_files(resolved):
+    for path in (*iter_supported_visible_source_files(resolved), *iter_visible_images(resolved)):
         try:
             stat = path.stat()
         except OSError:

@@ -20,7 +20,7 @@ from mkdocs.structure.files import File, Files
 from pymdownx.slugs import slugify
 
 from .metadata import render_metadata_block
-from .sources import SourcePage, build_catalog_page, load_source_pages
+from .sources import SourcePage, build_catalog_page, load_source_pages, iter_visible_images
 from .submissions import find_answer_block, is_blank_answer_area, parse_paper_structure
 
 
@@ -132,6 +132,22 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             self._config_root,
             self.config.assets_dir,
         )
+        image_hashes: dict[str, str] = {}
+        for path in iter_visible_images(self._source_root):
+            file = File(
+                (Path("library") / path.relative_to(self._source_root)).as_posix(),
+                str(self._source_root),
+                config.site_dir,
+                config.use_directory_urls,
+            )
+            file.content_bytes = path.read_bytes()
+            virtual.append(file)
+            image_hashes[file.url] = sha256(file.content_bytes).hexdigest()
+        # Image additions/removals change link resolution; rebuild pages rather
+        # than reuse HTML with stale URLs, and discard deleted copied assets.
+        presentation_fingerprint = sha256(
+            (presentation_fingerprint + json.dumps(image_hashes, sort_keys=True)).encode("utf-8")
+        ).hexdigest()
         previous = self._previous_manifest or {}
         previous_hashes = previous.get("pages", {})
         self._incremental_enabled = bool(
@@ -168,6 +184,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             for file in virtual
             if file.src_uri in self._pages_by_uri
         }
+        self._url_hashes.update(image_hashes)
         self._generation_version = _generation_version(self._url_hashes)
         return Files([*retained, *virtual])
 
@@ -565,6 +582,7 @@ _ALLOWED_TAGS = frozenset(
         "h5",
         "h6",
         "hr",
+        "img",
         "kbd",
         "li",
         "nav",
@@ -600,7 +618,7 @@ def _allowed_attribute(tag: str, name: str, value: str) -> bool:
         return True
     if tag == "a" and name == "href":
         return True
-    return False
+    return tag == "img" and name in {"src", "alt", "width", "height", "loading"}
 
 
 def _sanitize_html(html: str) -> str:
