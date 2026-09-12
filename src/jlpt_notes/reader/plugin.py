@@ -8,7 +8,7 @@ import posixpath
 from pathlib import Path
 import re
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
 import bleach
@@ -51,6 +51,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
     def on_config(self, config, **kwargs: Any):
         config["mdx_configs"].setdefault("toc", {}).setdefault("slugify", slugify())
         config["markdown_extensions"].append(ReaderHeadingExtension())
+        config["markdown_extensions"].append(ReaderLinkExtension(self))
         self._source_root = Path(config.docs_dir).resolve(strict=True)
         self._config_path = Path(config.config_file_path).resolve(strict=True)
         self._config_root = self._config_path.parent
@@ -199,6 +200,8 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
 
     def on_page_markdown(self, markdown: str, page, **kwargs: Any) -> str:
         source = self._pages_by_uri[page.file.src_uri]
+        self._current_source = source
+        self._current_file = page.file
         page.title = source.metadata.display_title
         page.meta.update(
             {
@@ -331,6 +334,38 @@ def _quiz_state_div(source: SourcePage) -> str:
     }
     payload = escape(json.dumps(state, ensure_ascii=False), quote=True)
     return f'<div class="jlpt-quiz-state" data-quiz-state="{payload}" hidden></div>\n\n'
+
+
+class ReaderLinkExtension(Extension):
+    """Resolve source-document links before MkDocs validates relative paths."""
+
+    def __init__(self, plugin) -> None:
+        self.plugin = plugin
+        super().__init__()
+
+    def extendMarkdown(self, md) -> None:
+        processor = _ReaderLinkTreeprocessor(md)
+        processor.plugin = self.plugin
+        md.treeprocessors.register(processor, "jlpt_reader_links", 1)
+
+
+class _ReaderLinkTreeprocessor(Treeprocessor):
+    def run(self, root: ElementTree.Element) -> ElementTree.Element:
+        plugin = self.plugin
+        for element in root.iter("a"):
+            href = element.get("href", "")
+            parsed = urlsplit(href)
+            if parsed.scheme or parsed.netloc or not parsed.path or parsed.path.startswith("/"):
+                continue
+            relative = posixpath.normpath(posixpath.join(
+                plugin._current_source.relative_path.parent.as_posix(), unquote(parsed.path)
+            ))
+            target = plugin._files_by_relative_path.get(Path(relative))
+            if target is None:
+                continue
+            path = posixpath.relpath(target.src_uri, posixpath.dirname(plugin._current_file.src_uri))
+            element.set("href", urlunsplit(("", "", quote(path, safe="/"), parsed.query, parsed.fragment)))
+        return root
 
 
 class ReaderHeadingExtension(Extension):
@@ -668,7 +703,7 @@ def _presentation_fingerprint(
     config_root: Path,
     assets_dir: str,
 ) -> str:
-    digest = sha256(b"jlpt-reader-rendering-v2\0")
+    digest = sha256(b"jlpt-reader-rendering-v3-document-links\0")
     candidates = [config_path]
     for directory in (config_root / assets_dir, config_root / "overrides"):
         if directory.is_dir():

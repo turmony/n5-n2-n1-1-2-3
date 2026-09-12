@@ -68,3 +68,28 @@ def test_image_sanitizer_preserves_image_but_rejects_active_attributes():
     assert 'alt="board"' in html
     assert 'onerror' not in html
     assert 'javascript:' not in html
+
+
+def test_image_added_after_page_is_discovered_and_resolves_on_incremental_build(caplog):
+    with TemporaryDirectory() as directory:
+        base = Path(directory)
+        root = base / 'notes'
+        root.mkdir()
+        (root / 'card.md').write_text('# Card\n\n![new](assets/new/board.png)\n', encoding='utf-8')
+        site = base / 'site'
+        first = build_site(root, CONFIG, site)
+        assert first.success
+        before = snapshot_sources(root)
+        image = root / 'assets/new/board.png'
+        image.parent.mkdir(parents=True)
+        image.write_bytes(PNG)
+        assert snapshot_sources(root) != before
+        caplog.clear()
+        next_site = base / 'site2'
+        second = build_site(root, CONFIG, next_site, previous_site=site)
+        assert second.success, second.error
+        assert second.version != first.version
+        assert 'not found among documentation files' not in caplog.text
+        assert (next_site / 'library/assets/new/board.png').read_bytes() == PNG
+        html = (next_site / 'library/card.md.__reader_markdown__/index.html').read_text(encoding='utf-8')
+        assert 'src="../assets/new/board.png"' in html
