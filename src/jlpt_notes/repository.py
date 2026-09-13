@@ -49,11 +49,12 @@ class Repository:
         """Promote a draft to a confirmed card and begin its seven-day cycle."""
         path = self.root / "drafts" / f"{draft_id}.md"
         text = path.read_text(encoding="utf-8")
-        metadata_text, _ = text[4:].split("\n---\n\n", 1)
+        metadata_text, body = text[4:].split("\n---\n\n", 1)
         metadata = json.loads(metadata_text)
         if metadata["confirmed"]:
             raise ValueError("draft has already been confirmed")
         proposal = dict(metadata["proposal"])
+        proposal.setdefault("body", body.rstrip("\n"))
         for key in ("created_at", "updated_at", "next_review"):
             proposal[key] = date.fromisoformat(proposal[key])
         proposal["tags"] = tuple(proposal.get("tags", []))
