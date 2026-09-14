@@ -259,8 +259,16 @@
 {"event_type":"confirmed","card_id":"N3-G-0078","date":"2026-09-13"}
 {"event_type":"confirmed","card_id":"N3-G-0079","date":"2026-09-13"}
 {"event_type": "confirmed", "card_id": "N3-G-0080", "date": "2026-09-14"}
+<<<<<<< HEAD
 {"event_type":"confirmed","card_id":"N3-G-0081","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
 {"event_type":"confirmed","card_id":"N3-G-0082","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
 {"event_type":"confirmed","card_id":"N3-G-0083","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
 {"event_type":"confirmed","card_id":"N3-G-0087","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
 {"event_type":"confirmed","card_id":"N3-G-0088","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
+=======
+{"event_type":"confirmed","card_id":"N3-G-0084","date":"2026-09-14"}
+{"event_type":"confirmed","card_id":"N3-G-0085","date":"2026-09-14"}
+{"event_type":"confirmed","card_id":"N3-G-0086","date":"2026-09-14"}
+{"event_type":"confirmed","card_id":"N3-G-0089","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
+{"event_type":"confirmed","card_id":"N3-G-0090","card_revision":1,"date":"2026-09-14","next_review":"2026-09-21"}
+>>>>>>> feature/N3-forwxai
