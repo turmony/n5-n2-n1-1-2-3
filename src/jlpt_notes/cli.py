@@ -14,6 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jlpt-notes")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for name, help_text in (("init", "create a learner data repository"), ("validate", "validate the repository"),
+                            ("validate-links", "check publishable local image links without writing"),
                             ("report-daily", "render today's read-only review brief"), ("backup", "create a local backup")):
         command = subparsers.add_parser(name, help=help_text)
         command.add_argument("--root", default="jlpt-notes")
@@ -41,9 +42,19 @@ def main() -> int:
     if args.command == "init":
         repo.init_layout()
         print(f"已创建资料库：{repo.root}")
-    elif args.command == "validate":
-        repo.init_layout()
-        print("资料库结构有效")
+    elif args.command in {"validate", "validate-links"}:
+        from .asset_links import audit_assets
+
+        if not repo.root.is_dir():
+            print(f"资料库不存在：{repo.root}", file=sys.stderr)
+            return 1
+        issues = audit_assets(repo.root)
+        for issue in issues:
+            print(issue, file=sys.stderr)
+        if issues:
+            print(f"发现 {len(issues)} 个图片资源链接问题", file=sys.stderr)
+            return 1
+        print("图片资源链接校验通过")
     elif args.command == "report-daily":
         repo.init_layout()
         print(render_daily_report(aggregate_attempts([]), 0, 0, 0, args.limit))

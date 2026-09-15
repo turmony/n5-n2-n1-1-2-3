@@ -64,6 +64,7 @@ class ReaderController:
         self._addresses: tuple[str, ...] = ()
         self._lan_enabled = False
         self._network_reason = ""
+        self._asset_warning_summary = ""
         # Cache the bound method under a distinct name so every construction
         # and rebind receives the same handler object, and tests can verify
         # wiring by identity.
@@ -413,6 +414,11 @@ class ReaderController:
                     f"{type(cleanup_error).__name__}: {cleanup_error}"
                 )
             return self._publication_error(temporary_root, destination, error)
+        with self._lifecycle_lock:
+            self._asset_warning_summary = (
+                f" 图片资源有 {len(result.warnings)} 个问题；{result.warnings[0]}；完整日志：{result.log_path}"
+                if result.warnings else ""
+            )
         return result
 
     @staticmethod
@@ -466,13 +472,14 @@ class ReaderController:
             lan_enabled = self._lan_enabled
             addresses = self._addresses
             reason = self._network_reason
+            asset_warning = self._asset_warning_summary
         if lan_enabled and addresses:
             url = f"http://{addresses[0]}:{self.port}"
             text = message or "阅读器正在运行。"
             if reminder:
                 text = f"{text} 请在同一 Wi-Fi 的 iPad Safari 打开下方地址。"
-            return ReaderStatus("running", text, url)
-        return ReaderStatus("local-only", reason or "当前只允许本机访问。", self._local_url())
+            return ReaderStatus("running", text + asset_warning, url)
+        return ReaderStatus("local-only", (reason or "当前只允许本机访问。") + asset_warning, self._local_url())
 
     def _publish_build_error(self, prefix: str, result: BuildResult) -> None:
         detail = result.error or "未知构建错误"

@@ -103,6 +103,24 @@ class _CleanupFailsOnceTemporary:
 
 
 class ReaderControllerTests(unittest.TestCase):
+    def test_image_warnings_reach_launcher_and_clear_after_repair(self) -> None:
+        with self._runtime() as (root, config, program, statuses), \
+             self._patched_runtime(build_results=[
+                 BuildResult(True, version='v1', warnings=('card.md: assets/missing.png',), log_path=Path('images.log')),
+                 BuildResult(True, version='v2'),
+             ]), \
+             patch('jlpt_notes.reader.controller.private_lan_addresses', return_value=()), \
+             patch('jlpt_notes.reader.controller.firewall_rule_present', return_value=False):
+            controller = ReaderController(root, config, program, on_status=statuses.append)
+            try:
+                self.assertTrue(controller.start())
+                self.assertIn('card.md', statuses[-1].message)
+                self.assertIn('images.log', statuses[-1].message)
+                self.assertTrue(controller.rebuild())
+                self.assertNotIn('missing.png', statuses[-1].message)
+            finally:
+                controller.stop()
+
     def setUp(self) -> None:
         _FakeStore.instances.clear()
         _FakeStore.activation_error = None

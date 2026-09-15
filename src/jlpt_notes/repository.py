@@ -9,6 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from .frontmatter import write_card
 from .models import Card
+from .asset_links import rebase_assets
 from .quizzes import Question, QuizResult
 
 
@@ -62,6 +63,9 @@ class Repository:
         card = replace(Card(**proposal), created_at=confirmed_on, updated_at=confirmed_on,
                        next_review=confirmed_on + timedelta(days=7))
         destination = self.root / ("grammar" if card.kind == "grammar" else "vocabulary") / card.level.lower() / f"{card.id}.md"
+        card = replace(card, body=rebase_assets(
+            self.root, path.relative_to(self.root), destination.relative_to(self.root), card.body,
+        ))
         write_card(destination, card)
         metadata["confirmed"] = True
         path.write_text("---\n" + json.dumps(metadata, ensure_ascii=False, indent=2) + "\n---\n\n" + text.split("\n---\n\n", 1)[1], encoding="utf-8")

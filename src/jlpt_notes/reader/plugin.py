@@ -4,6 +4,7 @@ from hashlib import sha256
 from html import escape
 from html.parser import HTMLParser
 import json
+import logging
 import posixpath
 from pathlib import Path
 import re
@@ -22,6 +23,7 @@ from pymdownx.slugs import slugify
 from .metadata import render_metadata_block
 from .sources import SourcePage, build_catalog_page, load_source_pages, iter_visible_images
 from .submissions import find_answer_block, is_blank_answer_area, parse_paper_structure
+from ..asset_links import AssetIndex
 
 
 class ReaderPluginConfig(base.Config):
@@ -56,6 +58,17 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         self._config_path = Path(config.config_file_path).resolve(strict=True)
         self._config_root = self._config_path.parent
         self._pages = load_source_pages(self._source_root)
+        self._asset_index = AssetIndex(self._source_root)
+        self._image_files: dict[Path, File] = {}
+        self._asset_issues = {
+            source.relative_path: self._asset_index.check(source.relative_path, source.markdown)
+            for source in self._pages
+        }
+        self.asset_warnings = tuple(str(issue) for issues in self._asset_issues.values() for issue in issues)
+        if self.asset_warnings:
+            logging.getLogger('mkdocs.plugins.jlpt_reader').warning(
+                '发现 %s 个图片资源链接问题：\n%s', len(self.asset_warnings), '\n'.join(self.asset_warnings),
+            )
         self._pages_by_uri: dict[str, SourcePage] = {}
         self._files_by_relative_path: dict[Path, File] = {}
         self._pager_neighbours: dict[str, tuple[tuple[str, str] | None, tuple[str, str] | None]] = {}
@@ -144,6 +157,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             file.content_bytes = path.read_bytes()
             virtual.append(file)
             image_hashes[file.url] = sha256(file.content_bytes).hexdigest()
+            self._image_files[path] = file
         # Image additions/removals change link resolution; rebuild pages rather
         # than reuse HTML with stale URLs, and discard deleted copied assets.
         presentation_fingerprint = sha256(
@@ -213,6 +227,11 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             }
         )
         warning = f'!!! warning "读取提示"\n    {source.warning}\n\n' if source.warning else ""
+        asset_issues = self._asset_issues.get(source.relative_path, ())
+        if asset_issues:
+            warning += '<div class="admonition warning"><p>图片资源读取提示</p><ul>' + ''.join(
+                f'<li>{escape(str(issue))}</li>' for issue in asset_issues
+            ) + '</ul></div>\n\n'
         safe_title = escape(source.metadata.display_title)
         page_state = (
             '<div class="jlpt-page-state" aria-hidden="true" '
@@ -352,8 +371,25 @@ class ReaderLinkExtension(Extension):
 class _ReaderLinkTreeprocessor(Treeprocessor):
     def run(self, root: ElementTree.Element) -> ElementTree.Element:
         plugin = self.plugin
+        for i, raw in enumerate(self.md.htmlStash.rawHtmlBlocks):
+            if isinstance(raw, str) and ('<img' in raw.lower() or '<a ' in raw.lower()):
+                parser = _RawAssetRenderer(plugin)
+                parser.feed(raw)
+                self.md.htmlStash.rawHtmlBlocks[i] = ''.join(parser.output)
+        for element in root.iter('img'):
+            if plugin._asset_index.issue(plugin._current_source.relative_path, element.get('src', '')):
+                label = element.get('alt', '')
+                tail = element.tail
+                element.clear()
+                element.tag = 'span'
+                element.text = f'图片暂不可用：{label}'
+                element.tail = tail
         for element in root.iter("a"):
             href = element.get("href", "")
+            if plugin._asset_index.issue(plugin._current_source.relative_path, href, image=False):
+                element.tag = 'span'
+                element.attrib.pop('href', None)
+                continue
             parsed = urlsplit(href)
             if parsed.scheme or parsed.netloc or not parsed.path or parsed.path.startswith("/"):
                 continue
@@ -366,6 +402,66 @@ class _ReaderLinkTreeprocessor(Treeprocessor):
             path = posixpath.relpath(target.src_uri, posixpath.dirname(plugin._current_file.src_uri))
             element.set("href", urlunsplit(("", "", quote(path, safe="/"), parsed.query, parsed.fragment)))
         return root
+
+
+class _RawAssetRenderer(HTMLParser):
+    """Apply the same asset policy to HTML stashed outside the Markdown tree."""
+
+    def __init__(self, plugin):
+        super().__init__(convert_charrefs=False)
+        self.plugin = plugin
+        self.output: list[str] = []
+        self.code_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {'pre', 'code', 'script', 'style'}:
+            self.code_depth += 1
+        values = dict(attrs)
+        attribute = 'src' if tag == 'img' else 'href'
+        href = values.get(attribute)
+        if self.code_depth or tag not in {'img', 'a'} or href is None:
+            self.output.append(self.get_starttag_text())
+            return
+        plugin = self.plugin
+        source = plugin._current_source.relative_path
+        issue = plugin._asset_index.issue(source, href, image=tag == 'img')
+        if issue and tag == 'img':
+            self.output.append(f'<span>图片暂不可用：{escape(values.get("alt") or "")}</span>')
+            return
+        if issue:
+            values.pop(attribute, None)
+        else:
+            parsed = urlsplit(href)
+            if not parsed.scheme and not parsed.netloc and parsed.path and not parsed.path.startswith('/'):
+                relative = posixpath.normpath(posixpath.join(source.parent.as_posix(), unquote(parsed.path)))
+                file = plugin._image_files.get(plugin._source_root / relative)
+                if file is not None:
+                    values[attribute] = urlunsplit(('', '', _pager_href(file.url, plugin._current_file.url),
+                                                   parsed.query, parsed.fragment))
+        self.output.append('<' + tag + ''.join(
+            f' {key}="{escape(value, quote=True)}"' if value is not None else f' {key}'
+            for key, value in values.items()
+        ) + '>')
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        if tag in {'pre', 'code', 'script', 'style'} and self.code_depth:
+            self.code_depth -= 1
+        self.output.append(f'</{tag}>')
+
+    def handle_data(self, data):
+        self.output.append(data)
+
+    def handle_entityref(self, name):
+        self.output.append(f'&{name};')
+
+    def handle_charref(self, name):
+        self.output.append(f'&#{name};')
+
+    def handle_comment(self, data):
+        self.output.append(f'<!--{data}-->')
 
 
 class ReaderHeadingExtension(Extension):

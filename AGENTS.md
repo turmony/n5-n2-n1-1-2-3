@@ -19,4 +19,11 @@
 
 ## 工具约定
 
+### 图片链接与入库校验
+
+- 所有入库方式（函数、批量脚本、手动整理）都必须在写正式卡及确认事件前校验图片链接。跨目录转卡调用 `jlpt_notes.asset_links.rebase_assets(root, source, destination, body)`，其中两个文档路径相对于资料库根目录；已按目标目录写好的正文调用 `AssetIndex(root).check(destination, body)`，有问题则停止写入。
+- 正文图片和图片超链接以当前 Markdown 所在目录为基准；`source.screenshot` 元数据仍以资料库根目录为基准。不得全局替换 `../assets/`，不得根据同名文件猜测目标。
+- 草稿完成及入库完成后运行 `uv run python -m jlpt_notes validate-links --root jlpt-notes`；退出码非零时列出问题，不宣称完成。该命令只读，完整 pytest 测试也会检查实际资料库。
+- 图片技术修复不重启复习周期，不改学习者原文、确认日期、复习日期或确认事件。
+
 Python 一律通过 uv 执行：`uv run python <脚本>`。本机 PATH 中没有系统 Python（只有微软商店占位符），uv 托管的解释器仅能经 `uv run` 使用，直接调用 `python`/`python3` 会报错。

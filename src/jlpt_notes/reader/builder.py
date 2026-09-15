@@ -25,6 +25,7 @@ class BuildResult:
     log_path: Path | None = None
     rendered_pages: int = 0
     reused_pages: int = 0
+    warnings: tuple[str, ...] = ()
 
 
 def build_site(
@@ -73,11 +74,18 @@ def build_site(
         build(config, dirty=previous is not None)
         version = _read_generation_version(target)
         reader_plugin = config.plugins.get("jlpt_reader")
+        warnings = tuple(getattr(reader_plugin, 'asset_warnings', ()))
+        warning_log = None
+        if warnings:
+            warning_log = target.parent / f'{target.name}.warnings.log'
+            warning_log.write_text('\n'.join(warnings) + '\n', encoding='utf-8')
         return BuildResult(
             success=True,
             version=version,
             rendered_pages=int(getattr(reader_plugin, "rendered_pages", 0)),
             reused_pages=int(getattr(reader_plugin, "reused_pages", 0)),
+            warnings=warnings,
+            log_path=warning_log,
         )
     except Exception as error:
         if created:
