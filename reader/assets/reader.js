@@ -98,6 +98,47 @@
     return { key: `${SCROLL_KEY_PREFIX}${pathname}`, value: String(offset) };
   }
 
+  function initialThemeMode(storedMode) {
+    return ["system", "light", "dark"].includes(storedMode) ? storedMode : "dark";
+  }
+
+  function centerActiveNavigation(rootNode) {
+    const sidebar = rootNode.querySelector(".md-sidebar--primary");
+    if (!sidebar) return false;
+    const activeLink = sidebar.querySelector(".md-nav__link--active[href]");
+    if (!activeLink) return false;
+    const activeList = activeLink.closest ? activeLink.closest(".md-nav__list") : null;
+    const scrollArea = activeList && activeList.scrollHeight > activeList.clientHeight
+      ? activeList
+      : sidebar.querySelector(".md-sidebar__scrollwrap");
+    if (!scrollArea) return false;
+    const scrollRect = scrollArea.getBoundingClientRect();
+    const activeRect = activeLink.getBoundingClientRect();
+    const desiredTop = scrollArea.scrollTop + activeRect.top - scrollRect.top -
+      ((scrollArea.clientHeight - activeRect.height) / 2);
+    const maximumTop = Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight);
+    scrollArea.scrollTop = Math.min(maximumTop, Math.max(0, desiredTop));
+    return true;
+  }
+
+  let centeredDrawer;
+  let centeredDrawerListener;
+  function installNavigationCentering(rootNode, scheduleFrame) {
+    if (centeredDrawer && centeredDrawerListener) {
+      centeredDrawer.removeEventListener("change", centeredDrawerListener);
+    }
+    const drawer = rootNode.querySelector("[data-md-toggle='drawer']");
+    centeredDrawer = drawer;
+    centeredDrawerListener = null;
+    if (!drawer) return false;
+    centeredDrawerListener = function () {
+      if (!drawer.checked) return;
+      scheduleFrame(function () { centerActiveNavigation(rootNode); });
+    };
+    drawer.addEventListener("change", centeredDrawerListener);
+    return true;
+  }
+
   function validContinuePath(pathname, pages) {
     if (typeof pathname !== "string" || !pathname.startsWith("/") || pathname.startsWith("//")) return "";
     const parsed = new URL(pathname, "https://reader.invalid/");
@@ -118,6 +159,9 @@
     decideReaderUpdate: decideReaderUpdate,
     installPageLifecycle: installPageLifecycle,
     captureScrollSnapshot: captureScrollSnapshot,
+    initialThemeMode: initialThemeMode,
+    centerActiveNavigation: centerActiveNavigation,
+    installNavigationCentering: installNavigationCentering,
     validContinuePath: validContinuePath
   };
   root.JlptReaderCore = core;
@@ -137,7 +181,7 @@
   }
 
   function followSystemTheme() {
-    if ((localStorage.getItem(THEME_KEY) || "system") === "system") applyTheme("system");
+    if (initialThemeMode(localStorage.getItem(THEME_KEY)) === "system") applyTheme("system");
   }
   if (themeQuery.addEventListener) themeQuery.addEventListener("change", followSystemTheme);
   else themeQuery.addListener(followSystemTheme);
@@ -280,7 +324,7 @@
     if (lifecycle.changed) {
       window.jlptManifest = undefined;
     }
-    applyTheme(localStorage.getItem(THEME_KEY) || "system");
+    applyTheme(initialThemeMode(localStorage.getItem(THEME_KEY)));
     document.documentElement.dataset.jlptFont = localStorage.getItem(FONT_KEY) || "medium";
     if (jlptPageState.pageKey && jlptPageState.pageKey !== "./") {
       localStorage.setItem(LAST_PAGE_KEY, location.pathname);
@@ -292,6 +336,7 @@
     window.addEventListener("pagehide", saveBeforePageHide);
     document.removeEventListener("click", saveBeforeLinkNavigation, true);
     document.addEventListener("click", saveBeforeLinkNavigation, true);
+    installNavigationCentering(document, requestAnimationFrame);
     const previousControls = document.querySelector(".jlpt-reader-controls");
     if (previousControls) previousControls.remove();
     const controls = document.createElement("div");
@@ -302,7 +347,7 @@
       controls,
       "主题",
       [["system", "跟随系统"], ["light", "浅色"], ["dark", "深色"]],
-      localStorage.getItem(THEME_KEY) || "system",
+      initialThemeMode(localStorage.getItem(THEME_KEY)),
       applyTheme
     );
     addSelect(

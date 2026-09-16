@@ -78,6 +78,7 @@ class ReaderServerTests(unittest.TestCase):
         (self.site / "guide" / "index.html").write_text("<h1>Guide</h1>", encoding="utf-8")
         (self.site / "reader-version.json").write_text('{"version":"v1"}', encoding="utf-8")
         (self.site / "assets" / "reader.css").write_text("body{}", encoding="utf-8")
+        (self.site / "assets" / "reader.js").write_text("void 0;", encoding="utf-8")
         (self.site / "語法 card.html").write_text("encoded path", encoding="utf-8")
         (self.root / "source-card.md").write_text("# private source", encoding="utf-8")
         self.store = SiteStore(self.root)
@@ -165,16 +166,20 @@ class ReaderServerTests(unittest.TestCase):
                 self.assertIn(b" 404 ", response.split(b"\r\n", 1)[0])
                 self.assertNotIn(b"JLPT", response)
 
-    def test_mime_types_and_no_cache_for_json_but_not_static_css(self) -> None:
+    def test_mime_types_and_no_cache_for_reader_assets(self) -> None:
         json_status, json_headers, _ = self.request("GET", "/reader-version.json")
         css_status, css_headers, _ = self.request("GET", "/assets/reader.css")
+        js_status, js_headers, _ = self.request("GET", "/assets/reader.js")
 
         self.assertEqual(json_status, 200)
         self.assertIn("application/json", json_headers["Content-Type"])
         self.assertEqual(json_headers["Cache-Control"], "no-cache")
         self.assertEqual(css_status, 200)
         self.assertIn("text/css", css_headers["Content-Type"])
-        self.assertNotIn("Cache-Control", css_headers)
+        self.assertEqual(css_headers["Cache-Control"], "no-cache")
+        self.assertEqual(js_status, 200)
+        self.assertIn("javascript", js_headers["Content-Type"])
+        self.assertEqual(js_headers["Cache-Control"], "no-cache")
 
     def test_every_non_read_method_returns_405_with_allow_header(self) -> None:
         before = (self.site / "index.html").read_bytes()

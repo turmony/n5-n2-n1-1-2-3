@@ -57,6 +57,7 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
         self._source_root = Path(config.docs_dir).resolve(strict=True)
         self._config_path = Path(config.config_file_path).resolve(strict=True)
         self._config_root = self._config_path.parent
+        _version_reader_asset_urls(config, self._config_root, self.config.assets_dir)
         self._pages = load_source_pages(self._source_root)
         self._asset_index = AssetIndex(self._source_root)
         self._image_files: dict[Path, File] = {}
@@ -241,18 +242,24 @@ class JlptReaderPlugin(plugins.BasePlugin[ReaderPluginConfig]):
             f'data-reader-type="{escape(source.metadata.content_type, quote=True)}"></div>'
         )
         neighbours = self._pager_neighbours.get(page.file.src_uri)
-        pager = ""
+        top_pager = ""
+        bottom_pager = ""
         if neighbours is not None:
             previous, nxt = neighbours
-            pager = _render_card_pager(
-                None if previous is None else (_pager_href(previous[0], page.file.url), previous[1]),
-                None if nxt is None else (_pager_href(nxt[0], page.file.url), nxt[1]),
+            pager_previous = None if previous is None else (_pager_href(previous[0], page.file.url), previous[1])
+            pager_next = None if nxt is None else (_pager_href(nxt[0], page.file.url), nxt[1])
+            top_pager = _render_card_pager(pager_previous, pager_next, position="top")
+            bottom_pager = _render_card_pager(
+                pager_previous,
+                pager_next,
             )
         quiz_state = _quiz_state_div(source)
         return (
             f"# {safe_title}\n\n{page_state}\n\n{quiz_state}"
-            f"{render_metadata_block(source.metadata)}\n\n{warning}{markdown}"
-            + (f"\n\n{pager}" if pager else "")
+            f"{render_metadata_block(source.metadata)}\n\n{warning}"
+            + (f"{top_pager}\n\n" if top_pager else "")
+            + markdown
+            + (f"\n\n{bottom_pager}" if bottom_pager else "")
         )
 
     def on_page_content(self, html: str, page, **kwargs: Any) -> str:
@@ -635,6 +642,8 @@ def _source_navigation_key(source: SourcePage) -> tuple[object, ...]:
 def _render_card_pager(
     previous: tuple[str, str] | None,
     nxt: tuple[str, str] | None,
+    *,
+    position: str = "bottom",
 ) -> str:
     """Render the same-level grammar pager; empty when no neighbour exists."""
 
@@ -654,7 +663,8 @@ def _render_card_pager(
         links.append(link("next", "下一张卡 →", nxt))
     if not links:
         return ""
-    return '<nav class="jlpt-card-pager" aria-label="语法卡翻阅">' + "".join(links) + "</nav>"
+    modifier = " jlpt-card-pager--top" if position == "top" else ""
+    return f'<nav class="jlpt-card-pager{modifier}" aria-label="语法卡翻阅">' + "".join(links) + "</nav>"
 
 
 def _pager_href(target_url: str, page_url: str) -> str:
@@ -812,6 +822,26 @@ def _presentation_fingerprint(
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _version_reader_asset_urls(config, config_root: Path, assets_dir: str) -> None:
+    """Make Safari request changed reader assets instead of reusing stale files."""
+    configured_assets = {
+        "extra_css": {"reader.css"},
+        "extra_javascript": {"reader.js", "quiz-answer.js"},
+    }
+    for config_key, names in configured_assets.items():
+        versioned: list[str] = []
+        for configured_url in config[config_key]:
+            clean_url = str(configured_url).split("?", 1)[0]
+            name = posixpath.basename(clean_url)
+            source = config_root / assets_dir / name
+            if name in names and source.is_file():
+                digest = sha256(source.read_bytes()).hexdigest()[:12]
+                versioned.append(f"{clean_url}?v={digest}")
+            else:
+                versioned.append(str(configured_url))
+        config[config_key] = versioned
 
 
 def _search_location_belongs_to(location: str, page_url: str) -> bool:

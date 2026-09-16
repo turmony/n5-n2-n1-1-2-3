@@ -246,7 +246,7 @@ def _handler_for(
                         self.send_header("Content-Length", str(length))
                         self.send_header("X-Content-Type-Options", "nosniff")
                         self.send_header("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
-                        if file_path.suffix.casefold() in {".html", ".json"}:
+                        if file_path.suffix.casefold() in {".html", ".json", ".css", ".js"}:
                             self.send_header("Cache-Control", "no-cache")
                         self.end_headers()
                         headers_sent = True

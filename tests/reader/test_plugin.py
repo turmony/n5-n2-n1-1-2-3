@@ -162,6 +162,30 @@ def _card_page(site: Path, title: str) -> Path:
 
 
 class ReaderPluginTests(unittest.TestCase):
+    def test_reader_asset_urls_change_with_their_content_hash(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            config_file.write_text(
+                config_file.read_text(encoding="utf-8")
+                + "extra_css:\n  - assets/reader.css\n"
+                + "extra_javascript:\n  - assets/reader.js\n  - assets/quiz-answer.js\n",
+                encoding="utf-8",
+            )
+            assets = config_file.parent / "assets"
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+            first_html = (site / "index.html").read_text(encoding="utf-8")
+            first_version = re.search(r"assets/reader\.js\?v=([0-9a-f]{12})", first_html)
+            self.assertIsNotNone(first_version)
+
+            (assets / "reader.js").write_text("changed", encoding="utf-8")
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+            second_html = (site / "index.html").read_text(encoding="utf-8")
+            second_version = re.search(r"assets/reader\.js\?v=([0-9a-f]{12})", second_html)
+            self.assertIsNotNone(second_version)
+            assert first_version is not None and second_version is not None
+            self.assertNotEqual(first_version.group(1), second_version.group(1))
+
     def test_cached_generation_refresh_changes_only_generation_markers(self) -> None:
         with TemporaryDirectory() as directory:
             path = Path(directory) / "index.html"
@@ -571,6 +595,24 @@ class ReaderPluginTests(unittest.TestCase):
             self.assertIn("N4-G-0001.md.__reader_markdown__/", " ".join(resolved))
             self.assertIn("N4-G-0003.md.__reader_markdown__/", " ".join(resolved))
 
+    def test_grammar_card_places_navigation_before_and_after_the_body(self) -> None:
+        with TemporaryDirectory() as directory:
+            docs, config_file, site = _write_reader_config(Path(directory))
+            _grammar_card(docs, "N4-G-0001", "N4", "第一张")
+            _grammar_card(docs, "N4-G-0002", "N4", "第二张")
+            _grammar_card(docs, "N4-G-0003", "N4", "第三张")
+
+            build(load_config(config_file=str(config_file), docs_dir=str(docs), site_dir=str(site)))
+
+            html = _card_page(site, "第二张").read_text(encoding="utf-8")
+            pagers = re.findall(r'<nav class="jlpt-card-pager[^>]*>.*?</nav>', html, flags=re.DOTALL)
+            body_position = html.index("<p>正文。</p>")
+
+            self.assertEqual(len(pagers), 2)
+            self.assertIn("jlpt-card-pager--top", pagers[0])
+            self.assertLess(html.index(pagers[0]), body_position)
+            self.assertGreater(html.index(pagers[1]), body_position)
+
     def test_card_pager_hides_out_of_range_sides(self) -> None:
         with TemporaryDirectory() as directory:
             docs, config_file, site = _write_reader_config(Path(directory))
@@ -631,6 +673,7 @@ class ReaderPluginTests(unittest.TestCase):
         self.assertIn(".jlpt-card-pager__label", css)
         self.assertIn(".jlpt-card-pager__title", css)
         self.assertIn(".jlpt-card-pager__link--next", css)
+        self.assertRegex(css, r"\.jlpt-card-pager--top\s*\{[^}]*margin:")
 
 
 _PLUGIN_PAPER = """# 测试卷

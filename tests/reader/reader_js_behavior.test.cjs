@@ -8,6 +8,86 @@ test("published-generation polling checks at least once per second", () => {
   assert.equal(core.VERSION_POLL_INTERVAL_MS, 1000);
 });
 
+test("a first-time reader defaults to dark while preserving an explicit theme", () => {
+  assert.equal(core.initialThemeMode(null), "dark");
+  assert.equal(core.initialThemeMode(""), "dark");
+  assert.equal(core.initialThemeMode("light"), "light");
+  assert.equal(core.initialThemeMode("system"), "system");
+});
+
+test("opening the navigation drawer centers the active page in its scroll area", () => {
+  const scrollArea = {
+    clientHeight: 600,
+    scrollHeight: 2000,
+    scrollTop: 0,
+    getBoundingClientRect: () => ({ top: 0, height: 600 })
+  };
+  const activeLink = {
+    getBoundingClientRect: () => ({ top: 1200, height: 40 })
+  };
+  const sidebar = {
+    querySelector: (selector) => ({
+      ".md-sidebar__scrollwrap": scrollArea,
+      ".md-nav__link--active[href]": activeLink
+    })[selector] || null
+  };
+  const drawer = {
+    checked: false,
+    addEventListener: (_name, listener) => { drawer.listener = listener; },
+    removeEventListener: () => {}
+  };
+  const page = {
+    querySelector: (selector) => ({
+      "[data-md-toggle='drawer']": drawer,
+      ".md-sidebar--primary": sidebar
+    })[selector] || null
+  };
+
+  core.installNavigationCentering(page, (callback) => callback());
+  drawer.checked = true;
+  drawer.listener();
+
+  assert.equal(scrollArea.scrollTop, 920);
+});
+
+test("iPad navigation centers the active page in the scrollable inner list", () => {
+  const outerScrollArea = {
+    clientHeight: 600,
+    scrollHeight: 600,
+    scrollTop: 0,
+    getBoundingClientRect: () => ({ top: 0, height: 600 })
+  };
+  const innerList = {
+    clientHeight: 600,
+    scrollHeight: 2000,
+    scrollTop: 0,
+    getBoundingClientRect: () => ({ top: 0, height: 600 })
+  };
+  const activeLink = {
+    closest: (selector) => selector === ".md-nav__list" ? innerList : null,
+    getBoundingClientRect: () => ({ top: 1200, height: 40 })
+  };
+  const hiddenTocLabel = {
+    closest: (selector) => selector === ".md-nav__list" ? innerList : null,
+    getBoundingClientRect: () => ({ top: 0, height: 0 })
+  };
+  const sidebar = {
+    querySelector: (selector) => ({
+      ".md-sidebar__scrollwrap": outerScrollArea,
+      ".md-nav__link--active": hiddenTocLabel,
+      ".md-nav__link--active[href]": activeLink
+    })[selector] || null
+  };
+  const page = {
+    querySelector: (selector) => selector === ".md-sidebar--primary" ? sidebar : null
+  };
+
+  core.centerActiveNavigation(page);
+
+  assert.equal(innerList.scrollTop, 920);
+  assert.equal(outerScrollArea.scrollTop, 0);
+});
+
 test("catalog filters combine level, type, and exact tags", () => {
   const entry = { level: "N3", type: "grammar", tags: ["接续", "易混"] };
   assert.equal(core.catalogEntryMatches(entry, { level: "N3", type: "grammar", tag: "接续" }), true);
