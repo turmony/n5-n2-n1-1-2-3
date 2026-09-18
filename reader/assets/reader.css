@@ -526,10 +526,10 @@ body {
   width: 2.25rem;
   min-height: 2.25rem;
   place-items: center;
-  border: 1px solid var(--jlpt-line);
+  border: 1px solid #dadce0;
   border-radius: 0.55rem;
   background: var(--jlpt-surface);
-  color: var(--jlpt-muted);
+  color: #5f6368;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 0.78rem;
   font-weight: 700;
@@ -537,26 +537,26 @@ body {
 }
 
 .jlpt-quiz-progress__item.answered {
-  border-color: color-mix(in srgb, var(--jlpt-blue) 35%, var(--jlpt-line));
-  background: var(--jlpt-blue-soft);
-  color: var(--jlpt-blue);
+  border-color: #aecbfa;
+  background: #e8f0fe;
+  color: #174ea6;
 }
 
 .jlpt-quiz-progress__item.current {
-  border-color: var(--jlpt-blue);
-  background: var(--jlpt-blue);
+  border-color: #1a73e8;
+  background: #1a73e8;
   color: #fff;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--jlpt-blue) 18%, transparent);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
 }
 
 .jlpt-quiz-progress__item.uncertain:not(.current) {
-  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--jlpt-blue) 55%, transparent);
+  box-shadow: inset 0 -3px 0 #f9ab00;
 }
 
 .jlpt-quiz-progress__item.current.uncertain {
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--jlpt-blue) 18%, transparent),
-    inset 0 -3px 0 color-mix(in srgb, #fff 76%, transparent);
+    0 0 0 3px rgba(26, 115, 232, 0.2),
+    inset 0 -3px 0 #f9ab00;
 }
 
 .jlpt-quiz-progress__item:focus-visible,
