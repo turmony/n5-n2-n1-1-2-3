@@ -559,6 +559,32 @@ body {
     inset 0 -3px 0 #f9ab00;
 }
 
+/* Google 风格的深色主题层级：已答与当前题保持清晰区分。 */
+body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item {
+  border-color: #3c4043;
+  background: #202124;
+  color: #9aa0a6;
+}
+
+body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.answered {
+  border-color: #8ab4f8;
+  background: #294a7a;
+  color: #d2e3fc;
+}
+
+body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current {
+  border-color: #8ab4f8;
+  background: #8ab4f8;
+  color: #202124;
+  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.25);
+}
+
+body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current.uncertain {
+  box-shadow:
+    0 0 0 3px rgba(138, 180, 248, 0.25),
+    inset 0 -3px 0 #f9ab00;
+}
+
 .jlpt-quiz-progress__item:focus-visible,
 .jlpt-quiz-option:focus-visible,
 .jlpt-quiz-submit:focus-visible {
