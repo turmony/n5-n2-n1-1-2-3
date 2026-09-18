@@ -350,30 +350,35 @@ html[data-jlpt-font="large"] {
   opacity: 0.45;
 }
 
-/* 考试控制台：以静默的石墨底色承载长阅读，仅让亮蓝承担操作与进度。 */
+/* 阅读器配色：暖纸色、墨色与青绿；操作状态共享语义色。 */
 :root {
-  --jlpt-ink: #15181e;
-  --jlpt-graphite: #252a34;
-  --jlpt-muted: #667085;
-  --jlpt-line: #d8dee9;
-  --jlpt-surface: #ffffff;
-  --jlpt-canvas: #f4f6f9;
-  --jlpt-blue: #2f80ff;
-  --jlpt-blue-soft: #eaf2ff;
-  --jlpt-blue-faint: #f4f8ff;
+  --jlpt-ink: #25332f;
+  --jlpt-graphite: #25332f;
+  --jlpt-muted: #626d66;
+  --jlpt-line: #d8dfd8;
+  --jlpt-surface: #fffefa;
+  --jlpt-canvas: #f5f5ef;
+  --jlpt-blue: #276655;
+  --jlpt-on-accent: #ffffff;
+  --jlpt-warning: #987021;
+  --jlpt-blue-soft: #e0ede5;
+  --jlpt-blue-faint: #edf3ed;
   --md-primary-fg-color: var(--jlpt-ink);
   --md-accent-fg-color: var(--jlpt-blue);
 }
 
 body[data-md-color-scheme="slate"] {
-  --jlpt-ink: #f5f7fb;
-  --jlpt-graphite: #181c23;
-  --jlpt-muted: #a8b1c0;
-  --jlpt-line: #343b48;
-  --jlpt-surface: #20252e;
-  --jlpt-canvas: #15181e;
-  --jlpt-blue-soft: #1d355c;
-  --jlpt-blue-faint: #192233;
+  --jlpt-ink: #e6ece5;
+  --jlpt-graphite: #1c2622;
+  --jlpt-muted: #a9b8ad;
+  --jlpt-line: #39493f;
+  --jlpt-surface: #202d27;
+  --jlpt-canvas: #17211c;
+  --jlpt-blue: #a3cfba;
+  --jlpt-on-accent: #172b21;
+  --jlpt-warning: #dfbc72;
+  --jlpt-blue-soft: #304b3d;
+  --jlpt-blue-faint: #24372c;
   --md-default-bg-color: var(--jlpt-canvas);
   --md-default-fg-color: var(--jlpt-ink);
   --md-default-fg-color--light: var(--jlpt-muted);
@@ -388,11 +393,11 @@ body {
 }
 
 .md-header {
-  background: color-mix(in srgb, var(--jlpt-canvas) 94%, transparent);
+  background: var(--jlpt-canvas);
   color: var(--jlpt-ink);
   border-bottom: 1px solid color-mix(in srgb, var(--jlpt-line) 78%, transparent);
   box-shadow: none;
-  backdrop-filter: blur(14px);
+
 }
 
 .md-header__button,
@@ -411,9 +416,9 @@ body {
 .md-typeset h1 {
   margin-bottom: 0.45rem;
   color: var(--jlpt-ink);
-  font-family: "Aptos Display", "Segoe UI Variable", "Yu Gothic UI", sans-serif;
-  font-size: clamp(1.7rem, 3.7vw, 2.35rem);
-  font-weight: 740;
+  font-family: var(--md-text-font);
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  font-weight: 650;
   letter-spacing: -0.028em;
 }
 
@@ -422,7 +427,7 @@ body {
   padding-top: 1.25rem;
   border-top: 1px solid var(--jlpt-line);
   color: var(--jlpt-ink);
-  font-family: "Aptos Display", "Segoe UI Variable", "Yu Gothic UI", sans-serif;
+  font-family: var(--md-text-font);
   font-size: 1.08rem;
   letter-spacing: 0.02em;
 }
@@ -496,10 +501,10 @@ body {
   margin: 0.85rem 0 1.45rem;
   padding: 0.52rem 0.6rem;
   border: 1px solid var(--jlpt-line);
-  border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--jlpt-surface) 92%, transparent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--jlpt-ink) 7%, transparent);
-  backdrop-filter: blur(12px);
+  border-radius: 0.45rem;
+  background: var(--jlpt-surface);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--jlpt-ink) 4%, transparent);
+
 }
 
 .jlpt-quiz-progress__label {
@@ -516,20 +521,21 @@ body {
   flex: 1;
   gap: 0.35rem;
   overflow-x: auto;
-  padding-bottom: 0.05rem;
+  padding: 0.2rem;
   scrollbar-width: thin;
 }
 
 .jlpt-quiz-progress__item {
+  position: relative;
   display: grid;
-  flex: 0 0 2.25rem;
-  width: 2.25rem;
-  min-height: 2.25rem;
+  flex: 0 0 max(44px, 2.25rem);
+  width: max(44px, 2.25rem);
+  min-height: max(44px, 2.25rem);
   place-items: center;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--jlpt-line);
   border-radius: 0.55rem;
   background: var(--jlpt-surface);
-  color: #5f6368;
+  color: var(--jlpt-muted);
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 0.78rem;
   font-weight: 700;
@@ -537,52 +543,25 @@ body {
 }
 
 .jlpt-quiz-progress__item.answered {
-  border-color: #aecbfa;
-  background: #e8f0fe;
-  color: #174ea6;
+  border-color: var(--jlpt-blue);
+  background: var(--jlpt-blue);
+  color: var(--jlpt-on-accent);
 }
 
+/* 背景只表示作答状态；当前位置使用边框，不覆盖已答/未答底色。 */
 .jlpt-quiz-progress__item.current {
-  border-color: #1a73e8;
-  background: #1a73e8;
-  color: #fff;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+  border-color: var(--jlpt-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--jlpt-blue) 35%, transparent);
 }
 
 .jlpt-quiz-progress__item.uncertain:not(.current) {
-  box-shadow: inset 0 -3px 0 #f9ab00;
+  box-shadow: inset 0 -3px 0 var(--jlpt-warning);
 }
 
 .jlpt-quiz-progress__item.current.uncertain {
   box-shadow:
-    0 0 0 3px rgba(26, 115, 232, 0.2),
-    inset 0 -3px 0 #f9ab00;
-}
-
-/* Google 风格的深色主题层级：已答与当前题保持清晰区分。 */
-body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item {
-  border-color: #3c4043;
-  background: #202124;
-  color: #9aa0a6;
-}
-
-body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.answered {
-  border-color: #8ab4f8;
-  background: #294a7a;
-  color: #d2e3fc;
-}
-
-body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current {
-  border-color: #8ab4f8;
-  background: #8ab4f8;
-  color: #202124;
-  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.25);
-}
-
-body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current.uncertain {
-  box-shadow:
-    0 0 0 3px rgba(138, 180, 248, 0.25),
-    inset 0 -3px 0 #f9ab00;
+    0 0 0 3px color-mix(in srgb, var(--jlpt-blue) 35%, transparent),
+    inset 0 -3px 0 var(--jlpt-warning);
 }
 
 .jlpt-quiz-progress__item:focus-visible,
@@ -596,7 +575,7 @@ body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current.uncertain {
   margin: 0.48rem 0;
   min-height: 48px;
   border-color: var(--jlpt-line);
-  border-radius: 0.7rem;
+  border-radius: 0.4rem;
   background: var(--jlpt-surface);
   color: var(--jlpt-ink);
   font-size: 1rem;
@@ -635,12 +614,12 @@ body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current.uncertain {
 
 .jlpt-quiz-bar {
   z-index: 7;
-  margin: 2rem -0.4rem 0;
+  margin: 2rem 0 0;
   padding: 0.7rem 0.9rem max(0.7rem, env(safe-area-inset-bottom));
   border-top-color: var(--jlpt-line);
-  background: color-mix(in srgb, var(--jlpt-surface) 94%, transparent);
-  box-shadow: 0 -8px 20px color-mix(in srgb, var(--jlpt-ink) 6%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--jlpt-surface);
+  box-shadow: none;
+
 }
 
 .jlpt-quiz-submit {
@@ -669,3 +648,46 @@ body[data-md-color-scheme="slate"] .jlpt-quiz-progress__item.current.uncertain {
     transition: none;
   }
 }
+
+/* 将 Material 主题与目录、表单统一到阅读器色板。 */
+body[data-md-color-scheme] {
+  --md-default-bg-color: var(--jlpt-canvas);
+  --md-default-fg-color: var(--jlpt-ink);
+  --md-default-fg-color--light: var(--jlpt-muted);
+  --md-default-fg-color--lighter: var(--jlpt-muted);
+  --md-default-fg-color--lightest: var(--jlpt-line);
+  --md-primary-fg-color: var(--jlpt-blue);
+  --md-primary-bg-color: var(--jlpt-on-accent);
+  --md-accent-fg-color: var(--jlpt-blue);
+  --md-typeset-a-color: var(--jlpt-blue);
+}
+
+.md-typeset { font-size: calc(0.85rem * var(--jlpt-font-scale)); }
+.md-content__inner { max-width: 48rem; margin-inline: auto; }
+.md-typeset h3 { margin-top: 2rem; font-weight: 600; line-height: 1.65; }
+.md-typeset table:not([class]) { background: var(--jlpt-surface); border-color: var(--jlpt-line); }
+.md-typeset table:not([class]) th { background: var(--jlpt-blue-faint); color: var(--jlpt-ink); }
+.jlpt-catalog-entry { border-color: var(--jlpt-line); border-radius: 0.35rem; background: var(--jlpt-surface); padding: 1rem; }
+.jlpt-catalog-entry > a { color: var(--jlpt-ink); }
+.jlpt-catalog-path { color: var(--jlpt-muted); }
+.jlpt-meta-chip { background: transparent; border-radius: 0.25rem; }
+.jlpt-reader-controls button, .jlpt-reader-controls select { border: 1px solid var(--jlpt-line); background: var(--jlpt-surface); color: var(--jlpt-ink); }
+.jlpt-fulltext-search input { background: var(--jlpt-surface); }
+.jlpt-quiz-submit { color: var(--jlpt-on-accent); }
+.jlpt-quiz-uncertain { min-height: 44px; }
+.jlpt-quiz-option, .jlpt-quiz-uncertain, .jlpt-quiz-submit { cursor: pointer; touch-action: manipulation; }
+.jlpt-quiz-submit:disabled { cursor: not-allowed; }
+.jlpt-quiz-progress__item { transition: background-color 140ms ease, border-color 140ms ease; }
+.jlpt-quiz-option.selected, .jlpt-quiz-option.ordered { box-shadow: inset 3px 0 0 var(--jlpt-blue); }
+@media (hover: hover) {
+  .jlpt-catalog-entry:hover, .jlpt-card-pager__link:hover { border-color: var(--jlpt-blue); }
+}
+@media (max-width: 59.984375em) {
+  .md-content__inner { margin-inline: 0.8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jlpt-quiz-progress__item, .jlpt-quiz-option { transition: none; }
+}
+
+.md-typeset .jlpt-quiz-progress__item { color: var(--jlpt-muted); }
+.md-typeset .jlpt-quiz-progress__item.answered { color: var(--jlpt-on-accent); }
