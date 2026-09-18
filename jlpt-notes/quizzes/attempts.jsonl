@@ -665,3 +665,23 @@
 {"question_id":"N3-Q-0072","revision":1,"item_type":"form_choice","selected_option":"1","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-09-17"}
 {"question_id":"N3-Q-0073","revision":1,"item_type":"form_choice","selected_option":"4","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-09-17"}
 {"question_id":"N3-Q-0074","revision":1,"item_type":"form_choice","selected_option":"2","is_correct":true,"uncertain":false,"error_tags":[],"date":"2026-09-17"}
+{"question_id": "N3-Q-0075", "revision": 1, "item_type": "form_choice", "selected_option": "2", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0076", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0077", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0078", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0079", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0080", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": false, "uncertain": false, "error_tags": ["反面接续", "な形容词接续"], "date": "2026-09-19"}
+{"question_id": "N3-Q-0081", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0082", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0083", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0084", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0085", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0086", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0087", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0088", "revision": 1, "item_type": "form_choice", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["最高程度结构", "ほど与くらい"], "date": "2026-09-19"}
+{"question_id": "N3-Q-0089", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0090", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0091", "revision": 1, "item_type": "form_choice", "selected_option": "2", "is_correct": false, "uncertain": false, "error_tags": ["向き与向け", "适合与面向"], "date": "2026-09-19"}
+{"question_id": "N3-Q-0092", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0093", "revision": 1, "item_type": "form_choice", "selected_option": "1", "is_correct": true, "uncertain": false, "error_tags": [], "date": "2026-09-19"}
+{"question_id": "N3-Q-0094", "revision": 1, "item_type": "form_choice", "selected_option": "4", "is_correct": false, "uncertain": false, "error_tags": ["并列列举", "も…ば～も"], "date": "2026-09-19"}
