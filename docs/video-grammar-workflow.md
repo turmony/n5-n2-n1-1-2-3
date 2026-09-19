@@ -109,12 +109,38 @@
 
 ### 网页检索与正文抓取工具
 
-- Firecrawl 当前因额度耗尽暂不可用；在恢复前，网页发现和正文抓取统一改用本机已安装的 Crawl4AI 0.9.3。
+- 抓取网页信息统一使用本机已安装的 Crawl4AI（当前版本 0.9.3），命令行入口为 `crwl`。`crawl4ai` 是安装包名，不是可执行命令；不要直接运行 `crawl4ai`。
 - Crawl4AI 只替代网页获取工具，不改变独立验证标准：原视频之外每课仍至少核对两份互相独立的教学资料，并优先选择日本的日语教学机构或日语教师提供的日文正文。
 - 搜索引擎页面只用于发现候选网址；搜索摘要、AI 摘要和结果标题均不得作为教学证据。必须用 Crawl4AI 打开并读取目标页面正文，再记录实际支持的接续、含义、限制与易混项。
 - 若搜索页触发验证码或目标站点无法抓取，可改用另一公开搜索入口、目标站点搜索接口或浏览器目视核验；不得绕过登录、付费墙、验证码或访问控制。
-- Crawl4AI 获取结果放在 Git 忽略的临时缓存目录中，不提交搜索页、网页镜像或原始缓存；正式卡只记录来源链接、核对日期和对应支持要点。
+- Crawl4AI 获取结果放在仓库外的临时缓存目录（如下面的 `$crawlCache`）或已确认被 Git 忽略的目录中，不提交搜索页、网页镜像或原始缓存；正式卡只记录来源链接、核对日期和对应支持要点。
 - Crawl4AI 抓取失败且关键内容无法通过其他公开正文可靠核实的课程，继续按问题处理流程执行，不交付完整卡片。
+
+常用 PowerShell 命令如下。将示例网址替换为实际要核对的教学正文网址；保存文件前先创建缓存目录。
+
+```powershell
+# 查看抓取参数
+crwl --help
+
+# 检查安装及浏览器抓取能力（会联网执行测试）
+crawl4ai-doctor
+
+# 抓取网页并在终端输出 Markdown
+crwl crawl "https://example.com" -o markdown
+
+# 创建仓库外的临时缓存目录，并保存 Markdown 正文
+$crawlCache = Join-Path $env:TEMP "jlpt-crawl4ai"
+New-Item -ItemType Directory -Force -Path $crawlCache | Out-Null
+crwl crawl "https://example.com" -o markdown -O (Join-Path $crawlCache "source.md")
+
+# 绕过缓存重新抓取，输出详细日志以便排查失败
+crwl crawl "https://example.com" -bc -v -o markdown -O (Join-Path $crawlCache "source-fresh.md")
+
+# 保存 JSON 结果；保留日文字符，便于阅读
+crwl crawl "https://example.com" -o json --no-json-ensure-ascii -O (Join-Path $crawlCache "source.json")
+```
+
+### 独立验证步骤
 
 1. **优先搜索日本的日语教学网站**，优先阅读日本的日语教学机构、日语教师提供的日文原文；再视需要补充其他可靠资料。
 2. 原视频之外，每课至少核对两份独立教学资料。原视频的转载、同一内容的复制或翻译不能充当独立证据。
