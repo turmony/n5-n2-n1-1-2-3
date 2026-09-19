@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -1 jlpt-notes/drafts/ | tail -30; echo \"=== 视频学习资料整理 ===\"; find jlpt-notes -maxdepth 2 -type d | head -40)",
+      "Bash(ls -la .claude .qoder 2>&1 | head -60)",
+      "Bash(find .claude .agents .superpowers -maxdepth 3 -not -path '*/node_modules/*' 2>&1 | head -60; echo \"---GITIGNORE---\"; cat .gitignore)",
+      "Bash(for s in quiz-generate quiz-grade; do echo \"=== $s ===\"; diff -q .agents/skills/$s/SKILL.md .claude/skills/$s/SKILL.md && echo \"identical\" ; wc -l .agents/skills/$s/SKILL.md .claude/skills/$s/SKILL.md; done; echo \"=== CLAUDE.md? ===\"; ls CLAUDE.md 2>&1; echo \"=== worktrees ===\"; git worktree list)",
+      "Bash(cd .claude/worktrees/uv-run-rule && git status --porcelain | head -20; echo \"--- branch merged into master? ---\"; git log --oneline master..worktree-uv-run-rule 2>&1 | head -20)",
+      "Bash(head -8 .claude/skills/quiz-generate/SKILL.md; echo \"=== grade ===\"; head -6 .claude/skills/quiz-grade/SKILL.md)",
+      "Bash(cd \"D:/PersonalProject/n5-n2-n1-1-2-3\" && pwd && head -8 .claude/skills/quiz-generate/SKILL.md && echo \"=== grade ===\" && head -6 .claude/skills/quiz-grade/SKILL.md)",
+      "Bash(cd \"D:/PersonalProject/n5-n2-n1-1-2-3\" && echo \"tracked .superpowers: $\\(git ls-files .superpowers | wc -l\\)\"; git ls-files .superpowers | head -5)"
+    ]
+  }
+}
