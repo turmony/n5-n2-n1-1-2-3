@@ -281,3 +281,4 @@
 {"event_type":"confirmed","card_id":"N3-G-0100","card_revision":1,"date":"2026-09-15","next_review":"2026-09-22"}
 {"event_type": "confirmed", "card_id": "N3-G-0101", "card_revision": 1, "date": "2026-09-19", "next_review": "2026-09-26"}
 {"event_type": "confirmed", "card_id": "N3-G-0102", "card_revision": 1, "date": "2026-09-20", "next_review": "2026-09-27"}
+{"event_type": "confirmed", "card_id": "N3-G-0103", "card_revision": 1, "date": "2026-09-20", "next_review": "2026-09-27"}
