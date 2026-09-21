@@ -1,0 +1,312 @@
+MENU
+
+- [日本語の文法](https://mainichi-nonbiri.com/japanese-grammar/)
+  - [Ｎ０文法](https://mainichi-nonbiri.com/japanese-grammar/#n0)
+  - [Ｎ１文法](https://mainichi-nonbiri.com/japanese-grammar/#n1)
+  - [Ｎ２文法](https://mainichi-nonbiri.com/japanese-grammar/#n2)
+  - [Ｎ３文法](https://mainichi-nonbiri.com/japanese-grammar/#n3)
+  - [Ｎ４文法](https://mainichi-nonbiri.com/japanese-grammar/#n4)
+  - [Ｎ５文法](https://mainichi-nonbiri.com/japanese-grammar/#n5)
+  - [敬語](https://mainichi-nonbiri.com/japanese-grammar/#honorifics)
+  - [オノマトペ](https://mainichi-nonbiri.com/onomatopoeia/)
+- [日本語教育能力検定試験／日本語教員試験](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [過去問解説](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [練習問題集](https://mainichi-nonbiri.com/jltct-practice-questions/)
+  - [用語集](https://mainichi-nonbiri.com/jltct-terminology/)
+- [日本語Q&A](https://mainichi-nonbiri.com/category/qa/)
+  - [気になることば](https://mainichi-nonbiri.com/category/interesting-words/)
+  - [気になる論文](https://mainichi-nonbiri.com/category/interesting-paper/)
+  - [毎日のんびり勉強会](https://mainichi-nonbiri.com/%e6%af%8e%e6%97%a5%e3%81%ae%e3%82%93%e3%81%b3%e3%82%8a%e5%8b%89%e5%bc%b7%e4%bc%9a/)
+- [日記](https://mainichi-nonbiri.com/category/diary/)
+  - [日本語教師のお仕事](https://mainichi-nonbiri.com/category/teacher/)
+  - [中国での生活 part1（廊坊編）](https://mainichi-nonbiri.com/category/china/)
+  - [中国での生活 part2（北京編）](https://mainichi-nonbiri.com/category/china2/)
+  - [大学院での生活](https://mainichi-nonbiri.com/category/grad-school/)
+  - [ダム訪問日記](https://mainichi-nonbiri.com/category/diary/dam/)
+  - [日常](https://mainichi-nonbiri.com/category/diary/life/)
+- [お役立ち](https://mainichi-nonbiri.com/category/tools/)
+  - [格助詞の用法一覧](https://mainichi-nonbiri.com/jltct/case-particles/)
+  - [子音のIPA表記一覧](https://mainichi-nonbiri.com/jltct/consonants/#index_id1)
+  - [自他対応一覧表](https://mainichi-nonbiri.com/tools/%e8%87%aa%e4%bb%96%e5%af%be%e5%bf%9c%e4%b8%80%e8%a6%a7%e8%a1%a8/)
+  - [五段動詞・一段動詞一覧](https://mainichi-nonbiri.com/tools/%e4%ba%94%e6%ae%b5%e5%8b%95%e8%a9%9e%e3%83%bb%e4%b8%80%e6%ae%b5%e5%8b%95%e8%a9%9e%e4%b8%80%e8%a6%a7/)
+  - [動詞の活用一覧](https://conjugation.mainichi-nonbiri.com/)
+  - [日本語の口語形一覧](https://mainichi-nonbiri.com/tools/casual-japanese/)
+  - [イ形容詞一覧](https://mainichi-nonbiri.com/tools/i-adjective/)
+  - [ナ形容詞一覧](https://mainichi-nonbiri.com/tools/na-adjective/)
+  - [敬語一覧](https://mainichi-nonbiri.com/jltct/how-to-use-japanese-honorifics/#index_id2)
+  - [教案](https://mainichi-nonbiri.com/category/teaching-plan/)
+  - [【音声分析】Praatの使い方](https://mainichi-nonbiri.com/category/praat/)
+- [Youtube動画](https://mainichi-nonbiri.com/category/youtube/)
+  - [YouTubeチャンネル](https://www.youtube.com/@mainichi-nonbiri/videos)
+  - [日本語教師のための動詞の基礎知識25](https://www.youtube.com/watch?v=3VEmweqRAtY&list=PLITlpzIo_yWOM6zKYuHuv9GyuiuaDUXSP&index=3)
+- [お問い合わせ](https://mainichi-nonbiri.com/contact/)
+  - [プロフィール](https://mainichi-nonbiri.com/profile/)
+  - [ご寄付のお願い](https://mainichi-nonbiri.com/donation/)
+  - [サイトマップ](https://mainichi-nonbiri.com/sitemap/)
+
+[毎日のんびり日本語教師](https://mainichi-nonbiri.com/ "毎日のんびり日本語教師")
+
+- [日本語の文法](https://mainichi-nonbiri.com/japanese-grammar/)
+  - [Ｎ０文法](https://mainichi-nonbiri.com/japanese-grammar/#n0)
+  - [Ｎ１文法](https://mainichi-nonbiri.com/japanese-grammar/#n1)
+  - [Ｎ２文法](https://mainichi-nonbiri.com/japanese-grammar/#n2)
+  - [Ｎ３文法](https://mainichi-nonbiri.com/japanese-grammar/#n3)
+  - [Ｎ４文法](https://mainichi-nonbiri.com/japanese-grammar/#n4)
+  - [Ｎ５文法](https://mainichi-nonbiri.com/japanese-grammar/#n5)
+  - [敬語](https://mainichi-nonbiri.com/japanese-grammar/#honorifics)
+  - [オノマトペ](https://mainichi-nonbiri.com/onomatopoeia/)
+- [日本語教育能力検定試験／日本語教員試験](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [過去問解説](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [練習問題集](https://mainichi-nonbiri.com/jltct-practice-questions/)
+  - [用語集](https://mainichi-nonbiri.com/jltct-terminology/)
+- [日本語Q&A](https://mainichi-nonbiri.com/category/qa/)
+  - [気になることば](https://mainichi-nonbiri.com/category/interesting-words/)
+  - [気になる論文](https://mainichi-nonbiri.com/category/interesting-paper/)
+  - [毎日のんびり勉強会](https://mainichi-nonbiri.com/%e6%af%8e%e6%97%a5%e3%81%ae%e3%82%93%e3%81%b3%e3%82%8a%e5%8b%89%e5%bc%b7%e4%bc%9a/)
+- [日記](https://mainichi-nonbiri.com/category/diary/)
+  - [日本語教師のお仕事](https://mainichi-nonbiri.com/category/teacher/)
+  - [中国での生活 part1（廊坊編）](https://mainichi-nonbiri.com/category/china/)
+  - [中国での生活 part2（北京編）](https://mainichi-nonbiri.com/category/china2/)
+  - [大学院での生活](https://mainichi-nonbiri.com/category/grad-school/)
+  - [ダム訪問日記](https://mainichi-nonbiri.com/category/diary/dam/)
+  - [日常](https://mainichi-nonbiri.com/category/diary/life/)
+- [お役立ち](https://mainichi-nonbiri.com/category/tools/)
+  - [格助詞の用法一覧](https://mainichi-nonbiri.com/jltct/case-particles/)
+  - [子音のIPA表記一覧](https://mainichi-nonbiri.com/jltct/consonants/#index_id1)
+  - [自他対応一覧表](https://mainichi-nonbiri.com/tools/%e8%87%aa%e4%bb%96%e5%af%be%e5%bf%9c%e4%b8%80%e8%a6%a7%e8%a1%a8/)
+  - [五段動詞・一段動詞一覧](https://mainichi-nonbiri.com/tools/%e4%ba%94%e6%ae%b5%e5%8b%95%e8%a9%9e%e3%83%bb%e4%b8%80%e6%ae%b5%e5%8b%95%e8%a9%9e%e4%b8%80%e8%a6%a7/)
+  - [動詞の活用一覧](https://conjugation.mainichi-nonbiri.com/)
+  - [日本語の口語形一覧](https://mainichi-nonbiri.com/tools/casual-japanese/)
+  - [イ形容詞一覧](https://mainichi-nonbiri.com/tools/i-adjective/)
+  - [ナ形容詞一覧](https://mainichi-nonbiri.com/tools/na-adjective/)
+  - [敬語一覧](https://mainichi-nonbiri.com/jltct/how-to-use-japanese-honorifics/#index_id2)
+  - [教案](https://mainichi-nonbiri.com/category/teaching-plan/)
+  - [【音声分析】Praatの使い方](https://mainichi-nonbiri.com/category/praat/)
+- [Youtube動画](https://mainichi-nonbiri.com/category/youtube/)
+  - [YouTubeチャンネル](https://www.youtube.com/@mainichi-nonbiri/videos)
+  - [日本語教師のための動詞の基礎知識25](https://www.youtube.com/watch?v=3VEmweqRAtY&list=PLITlpzIo_yWOM6zKYuHuv9GyuiuaDUXSP&index=3)
+- [お問い合わせ](https://mainichi-nonbiri.com/contact/)
+  - [プロフィール](https://mainichi-nonbiri.com/profile/)
+  - [ご寄付のお願い](https://mainichi-nonbiri.com/donation/)
+  - [サイトマップ](https://mainichi-nonbiri.com/sitemap/)
+
+# 【Ｎ２文法】～として／としての／としても
+
+20204/01
+
+[日本語の文法](https://mainichi-nonbiri.com/category/grammar/) [Ｎ２文法](https://mainichi-nonbiri.com/category/grammar/n2/)
+
+2020年4月1日2025年7月9日
+
+![](https://mainichi-nonbiri.com/wp-content/uploads/2023/06/n2grammar.webp)
+
+### 接続
+
+名詞＋として
+
+名詞＋としての＋名詞
+
+名詞＋としても／といたしましても
+
+名詞＋として／といたしまして
+
+### 意味
+
+作为…（として）
+
+当作…
+
+作为…也…（としても）
+
+作为…的…（としての）
+
+### 解説
+
+身分や立場、資格、種類を表します。
+
+「～といたしまして」「～といたしましても」は謙譲語です。
+
+### 例文
+
+（１）　このミスコンでは女性としての容姿の美しさを競うのではなく、内面の美しさが評価対象となっている。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+这个选美比赛并不是以女性的容貌美丽进行竞争，而是以内在美为评价对象。
+
+In this beauty contest, the evaluation criteria focus on inner beauty rather than physical appearance as a woman.
+
+（２）　プレゼントされたものを売り払うなんて人としてどうかしてる。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+把收到的礼物卖掉，这个人是怎么想的。
+
+It’s questionable as a person to sell off something that was given as a gift.
+
+（３）　彼は多趣味で、その１つとして釣りがある。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+他兴趣广泛，其中之一是钓鱼。
+
+He has many hobbies, and one of them is fishing.
+
+（４）　「抱く」には、男性が女性と夜の営みをすることを表す俗語としての意味がある。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+“抱く”有表示男性和女性在夜晚生活的俗语的意思。
+
+The word “抱く” has a colloquial meaning of a man engaging in intimate relations with a woman during the night.
+
+（５）　上の者に従う。それが組織としての在り方である。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+服从上级那是作为组织的应有状态。
+
+Follow the superior. That’s the way an organization operates.
+
+（６）　Ａ監督は現役時代、選手としても素晴らしい功績を残している。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+A教练在现役时，作为选手留下了伟大的功绩。
+
+Director A has achieved remarkable accomplishments both as a coach and as a player during his active career.
+
+（７）　このウイスキーは消毒液としても使用できます。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+这个威士忌也可以作为消毒液使用。
+
+This whiskey can also be used as a disinfectant.
+
+（８）　知識としてはあるが経験がない。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+作为知识倒是有，但没有经验。
+
+I have the knowledge, but no practical experience.
+
+（９）　詳しい条件といたしましては以下になります。　[▶](https://mainichi-nonbiri.com/grammar/n2-toshite/#)
+
+详细条件如下。
+
+As for the detailed conditions, they are as follows.
+
+### 備考
+
+[【Ｎ２文法】～にしては](https://mainichi-nonbiri.com/grammar/n2-nishiteha/)
+
+[【Ｎ２文法】～として／としての／としても](https://mainichi-nonbiri.com/grammar/n2-toshite/)
+
+[【Ｎ２文法】～としては](https://mainichi-nonbiri.com/grammar/n2-toshiteha/)
+
+[日本語の文法](https://mainichi-nonbiri.com/category/grammar/) [Ｎ２文法](https://mainichi-nonbiri.com/category/grammar/n2/)
+
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar-300x113.webp)【Ｎ３文法】～としたら／とすると／とすれば](https://mainichi-nonbiri.com/grammar/n3-toshitara/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar-300x113.webp)【Ｎ３文法】～としても／としたって／としたところで／とて](https://mainichi-nonbiri.com/grammar/n3-toshitemo/)
+
+## 関連記事
+
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/05/n4grammar.webp)\\
+\\
+【Ｎ４文法】～過ぎる／が過ぎる\\
+\\
+2017年7月27日2025年7月9日](https://mainichi-nonbiri.com/grammar/n4-sugiru/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/05/n4grammar.webp)\\
+\\
+【Ｎ４文法】～（さ）せられる（使役受身／使役受動態）\\
+\\
+2018年11月17日2025年7月9日](https://mainichi-nonbiri.com/grammar/n4-saserareru/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)\\
+\\
+【Ｎ３文法】～さえ／さえも\\
+\\
+2018年11月15日2025年7月9日](https://mainichi-nonbiri.com/grammar/n3-sae/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)\\
+\\
+【Ｎ３文法】～合う\\
+\\
+2017年7月25日2025年7月9日](https://mainichi-nonbiri.com/grammar/n3-au/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～が早いか\\
+\\
+2017年7月31日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-gahayaika/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)\\
+\\
+【Ｎ３文法】～末（に）／末の\\
+\\
+2018年11月17日2025年7月9日](https://mainichi-nonbiri.com/grammar/n3-sue/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～なり～なり／～なりとも／～なり何なりと\\
+\\
+2020年1月5日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-narinari/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～を顧みず／も顧みず\\
+\\
+2017年8月7日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-wokaerimizu/)
+
+## コメント
+
+### コメント一覧 （2件）
+
+- 老师你好，第8条是否能归类到「〜としては」。
+
+
+（８）知識としてはあるが経験がない。
+
+
+作为知识倒是有，但没有经验。
+
+
+I have the knowledge, but no practical experience.
+
+
+
+实际上这句话省略了主语。
+
+
+（私は／彼は）知識としてはあるが経験がない。
+
+[https://mainichi-nonbiri.com/grammar/n2-toshiteha/](https://mainichi-nonbiri.com/grammar/n2-toshiteha/)
+
+
+
+
+
+[返信](https://mainichi-nonbiri.com/grammar/n2-toshite/?replytocom=4950#respond)
+
+  - ＞カクさん
+
+
+    確認しましたが、「～としては」に分類できないと思います。意味が違うからです。
+
+
+    確かに（８）はちょっと異質な感じがするのですが…
+
+
+
+
+
+    [返信](https://mainichi-nonbiri.com/grammar/n2-toshite/?replytocom=4951#respond)
+
+### コメントする [コメントをキャンセル](https://mainichi-nonbiri.com/grammar/n2-toshite/\#respond)
+
+コメント ※
+
+名前
+
+メール
+
+サイト
+
+次回のコメントで使用するためブラウザーに自分の名前、メールアドレス、サイトを保存する。
+
+1. [ホーム](https://mainichi-nonbiri.com/)
+2. [日本語の文法](https://mainichi-nonbiri.com/category/grammar/)
+3. [Ｎ２文法](https://mainichi-nonbiri.com/category/grammar/n2/)
+4. 【Ｎ２文法】～として／としての／としても
+
+閉じる
+
+目次
+
+閉じる
+
+reCAPTCHA
+
+Recaptcha requires verification.
+
+protected by **reCAPTCHA**

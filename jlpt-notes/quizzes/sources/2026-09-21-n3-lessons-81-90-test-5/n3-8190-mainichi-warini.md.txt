@@ -1,0 +1,367 @@
+MENU
+
+- [日本語の文法](https://mainichi-nonbiri.com/japanese-grammar/)
+  - [Ｎ０文法](https://mainichi-nonbiri.com/japanese-grammar/#n0)
+  - [Ｎ１文法](https://mainichi-nonbiri.com/japanese-grammar/#n1)
+  - [Ｎ２文法](https://mainichi-nonbiri.com/japanese-grammar/#n2)
+  - [Ｎ３文法](https://mainichi-nonbiri.com/japanese-grammar/#n3)
+  - [Ｎ４文法](https://mainichi-nonbiri.com/japanese-grammar/#n4)
+  - [Ｎ５文法](https://mainichi-nonbiri.com/japanese-grammar/#n5)
+  - [敬語](https://mainichi-nonbiri.com/japanese-grammar/#honorifics)
+  - [オノマトペ](https://mainichi-nonbiri.com/onomatopoeia/)
+- [日本語教育能力検定試験／日本語教員試験](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [過去問解説](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [練習問題集](https://mainichi-nonbiri.com/jltct-practice-questions/)
+  - [用語集](https://mainichi-nonbiri.com/jltct-terminology/)
+- [日本語Q&A](https://mainichi-nonbiri.com/category/qa/)
+  - [気になることば](https://mainichi-nonbiri.com/category/interesting-words/)
+  - [気になる論文](https://mainichi-nonbiri.com/category/interesting-paper/)
+  - [毎日のんびり勉強会](https://mainichi-nonbiri.com/%e6%af%8e%e6%97%a5%e3%81%ae%e3%82%93%e3%81%b3%e3%82%8a%e5%8b%89%e5%bc%b7%e4%bc%9a/)
+- [日記](https://mainichi-nonbiri.com/category/diary/)
+  - [日本語教師のお仕事](https://mainichi-nonbiri.com/category/teacher/)
+  - [中国での生活 part1（廊坊編）](https://mainichi-nonbiri.com/category/china/)
+  - [中国での生活 part2（北京編）](https://mainichi-nonbiri.com/category/china2/)
+  - [大学院での生活](https://mainichi-nonbiri.com/category/grad-school/)
+  - [ダム訪問日記](https://mainichi-nonbiri.com/category/diary/dam/)
+  - [日常](https://mainichi-nonbiri.com/category/diary/life/)
+- [お役立ち](https://mainichi-nonbiri.com/category/tools/)
+  - [格助詞の用法一覧](https://mainichi-nonbiri.com/jltct/case-particles/)
+  - [子音のIPA表記一覧](https://mainichi-nonbiri.com/jltct/consonants/#index_id1)
+  - [自他対応一覧表](https://mainichi-nonbiri.com/tools/%e8%87%aa%e4%bb%96%e5%af%be%e5%bf%9c%e4%b8%80%e8%a6%a7%e8%a1%a8/)
+  - [五段動詞・一段動詞一覧](https://mainichi-nonbiri.com/tools/%e4%ba%94%e6%ae%b5%e5%8b%95%e8%a9%9e%e3%83%bb%e4%b8%80%e6%ae%b5%e5%8b%95%e8%a9%9e%e4%b8%80%e8%a6%a7/)
+  - [動詞の活用一覧](https://conjugation.mainichi-nonbiri.com/)
+  - [日本語の口語形一覧](https://mainichi-nonbiri.com/tools/casual-japanese/)
+  - [イ形容詞一覧](https://mainichi-nonbiri.com/tools/i-adjective/)
+  - [ナ形容詞一覧](https://mainichi-nonbiri.com/tools/na-adjective/)
+  - [敬語一覧](https://mainichi-nonbiri.com/jltct/how-to-use-japanese-honorifics/#index_id2)
+  - [教案](https://mainichi-nonbiri.com/category/teaching-plan/)
+  - [【音声分析】Praatの使い方](https://mainichi-nonbiri.com/category/praat/)
+- [Youtube動画](https://mainichi-nonbiri.com/category/youtube/)
+  - [YouTubeチャンネル](https://www.youtube.com/@mainichi-nonbiri/videos)
+  - [日本語教師のための動詞の基礎知識25](https://www.youtube.com/watch?v=3VEmweqRAtY&list=PLITlpzIo_yWOM6zKYuHuv9GyuiuaDUXSP&index=3)
+- [お問い合わせ](https://mainichi-nonbiri.com/contact/)
+  - [プロフィール](https://mainichi-nonbiri.com/profile/)
+  - [ご寄付のお願い](https://mainichi-nonbiri.com/donation/)
+  - [サイトマップ](https://mainichi-nonbiri.com/sitemap/)
+
+[毎日のんびり日本語教師](https://mainichi-nonbiri.com/ "毎日のんびり日本語教師")
+
+- [日本語の文法](https://mainichi-nonbiri.com/japanese-grammar/)
+  - [Ｎ０文法](https://mainichi-nonbiri.com/japanese-grammar/#n0)
+  - [Ｎ１文法](https://mainichi-nonbiri.com/japanese-grammar/#n1)
+  - [Ｎ２文法](https://mainichi-nonbiri.com/japanese-grammar/#n2)
+  - [Ｎ３文法](https://mainichi-nonbiri.com/japanese-grammar/#n3)
+  - [Ｎ４文法](https://mainichi-nonbiri.com/japanese-grammar/#n4)
+  - [Ｎ５文法](https://mainichi-nonbiri.com/japanese-grammar/#n5)
+  - [敬語](https://mainichi-nonbiri.com/japanese-grammar/#honorifics)
+  - [オノマトペ](https://mainichi-nonbiri.com/onomatopoeia/)
+- [日本語教育能力検定試験／日本語教員試験](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [過去問解説](https://mainichi-nonbiri.com/jltct-past-question/)
+  - [練習問題集](https://mainichi-nonbiri.com/jltct-practice-questions/)
+  - [用語集](https://mainichi-nonbiri.com/jltct-terminology/)
+- [日本語Q&A](https://mainichi-nonbiri.com/category/qa/)
+  - [気になることば](https://mainichi-nonbiri.com/category/interesting-words/)
+  - [気になる論文](https://mainichi-nonbiri.com/category/interesting-paper/)
+  - [毎日のんびり勉強会](https://mainichi-nonbiri.com/%e6%af%8e%e6%97%a5%e3%81%ae%e3%82%93%e3%81%b3%e3%82%8a%e5%8b%89%e5%bc%b7%e4%bc%9a/)
+- [日記](https://mainichi-nonbiri.com/category/diary/)
+  - [日本語教師のお仕事](https://mainichi-nonbiri.com/category/teacher/)
+  - [中国での生活 part1（廊坊編）](https://mainichi-nonbiri.com/category/china/)
+  - [中国での生活 part2（北京編）](https://mainichi-nonbiri.com/category/china2/)
+  - [大学院での生活](https://mainichi-nonbiri.com/category/grad-school/)
+  - [ダム訪問日記](https://mainichi-nonbiri.com/category/diary/dam/)
+  - [日常](https://mainichi-nonbiri.com/category/diary/life/)
+- [お役立ち](https://mainichi-nonbiri.com/category/tools/)
+  - [格助詞の用法一覧](https://mainichi-nonbiri.com/jltct/case-particles/)
+  - [子音のIPA表記一覧](https://mainichi-nonbiri.com/jltct/consonants/#index_id1)
+  - [自他対応一覧表](https://mainichi-nonbiri.com/tools/%e8%87%aa%e4%bb%96%e5%af%be%e5%bf%9c%e4%b8%80%e8%a6%a7%e8%a1%a8/)
+  - [五段動詞・一段動詞一覧](https://mainichi-nonbiri.com/tools/%e4%ba%94%e6%ae%b5%e5%8b%95%e8%a9%9e%e3%83%bb%e4%b8%80%e6%ae%b5%e5%8b%95%e8%a9%9e%e4%b8%80%e8%a6%a7/)
+  - [動詞の活用一覧](https://conjugation.mainichi-nonbiri.com/)
+  - [日本語の口語形一覧](https://mainichi-nonbiri.com/tools/casual-japanese/)
+  - [イ形容詞一覧](https://mainichi-nonbiri.com/tools/i-adjective/)
+  - [ナ形容詞一覧](https://mainichi-nonbiri.com/tools/na-adjective/)
+  - [敬語一覧](https://mainichi-nonbiri.com/jltct/how-to-use-japanese-honorifics/#index_id2)
+  - [教案](https://mainichi-nonbiri.com/category/teaching-plan/)
+  - [【音声分析】Praatの使い方](https://mainichi-nonbiri.com/category/praat/)
+- [Youtube動画](https://mainichi-nonbiri.com/category/youtube/)
+  - [YouTubeチャンネル](https://www.youtube.com/@mainichi-nonbiri/videos)
+  - [日本語教師のための動詞の基礎知識25](https://www.youtube.com/watch?v=3VEmweqRAtY&list=PLITlpzIo_yWOM6zKYuHuv9GyuiuaDUXSP&index=3)
+- [お問い合わせ](https://mainichi-nonbiri.com/contact/)
+  - [プロフィール](https://mainichi-nonbiri.com/profile/)
+  - [ご寄付のお願い](https://mainichi-nonbiri.com/donation/)
+  - [サイトマップ](https://mainichi-nonbiri.com/sitemap/)
+
+# 【Ｎ３文法】～わりに／わりには
+
+20192/28
+
+[日本語の文法](https://mainichi-nonbiri.com/category/grammar/) [Ｎ３文法](https://mainichi-nonbiri.com/category/grammar/n3/)
+
+2019年2月28日2025年7月9日
+
+![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)
+
+### 接続
+
+動詞普通形＋わりに（は）
+
+い形容詞普通形＋わりに（は）
+
+な形容詞語幹＋な／である＋わりに（は）
+
+名詞＋の／である＋わりに（は）
+
+### 意味
+
+（比较起来）虽然…但是…
+
+比起…虽然不…但是…
+
+### 解説
+
+一般的に想定される結果とは相反する結果が生じたことを表します。
+
+### 例文
+
+（１）　中古のわりに高い。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+明明是二手的东西反而贵。
+
+It’s expensive for a used one.
+
+（２）　このイヤホンは高いわりに音が悪い。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+这个耳机虽然贵，但是声音不好。
+
+Despite being expensive, these earphones have poor sound quality.
+
+（３）　パンはお腹が膨れるわりに栄養はほとんどない。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+面包虽然饱了，但是几乎没有营养。
+
+Bread fills the stomach, but it’s low in nutrition.
+
+（４）　初心者のわりには頑張ったと思う。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+我觉得虽然是初学者但是很努力。
+
+Considering that I’m a beginner, I think I did my best.
+
+（５）　あのチーム、負けたわりには悔しそうにしていないのが不思議だ。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+那个队虽然输了，却没有后悔，真是不可思议。
+
+It’s strange that the team doesn’t seem frustrated despite losing.
+
+（６）　好きな曲は多いわりに、歌える曲が少ない。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+喜欢的曲子很多，但是能唱的歌曲很少。
+
+I have many favorite songs, but surprisingly, there are few I can sing.
+
+（７）　雨が降っているわりにはあまり寒くない。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+虽然下着雨，但是不怎么冷。
+
+Despite the rain, it’s not very cold.
+
+（８）　そこのお店は値段のわりに量が多くてよく通っている。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+那家店又便宜，量还很大，所以经常来。
+
+That shop has a lot of quantity for the price, so I often go there.
+
+（９）　寝不足のわりに体調は悪くない。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+睡眠不足的情况下身体状况并不差。
+
+Despite lack of sleep, my health is not bad.
+
+（10）　この料理は手間がかかるわりにあまりおいしくない。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+这道菜虽然需要花费一些时间，但并不太好吃。
+
+This dish is not very delicious considering the effort it takes.
+
+（11）　年齢のわりには大人っぽい息子に育ちました。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+和年龄相比，我的儿子长得很成熟。
+
+Despite his age, he has grown into a mature son.
+
+（12）　職種のわりに年収低くないですかって言われた。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+有人问我，考虑到职业，你的年收入不低吗？
+
+I was told, “Considering the job, isn’t the annual income low?”
+
+（13）　38.1度、熱のわりに体は楽。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+体温达到38.1度，虽然有点热，但身体感觉还好。
+
+With a temperature of 38.1 degrees, surprisingly, I feel fine.
+
+（14）　３０度のわりには天気が不安定なせいか、暑いけどエアコンはいらなかった。　[▶](https://mainichi-nonbiri.com/grammar/n3-warini/#)
+
+尽管温度达到30度，由于天气不稳定，虽然有点热，但并不需要空调。
+
+Despite it being 30 degrees, the weather is unstable, so it’s hot, but I don’t need the air conditioning.
+
+### 備考
+
+[【Ｎ３文法】～くせに／くせして](https://mainichi-nonbiri.com/grammar/n3-kuseni/)
+
+[【Ｎ２文法】～にしては](https://mainichi-nonbiri.com/grammar/n2-nishiteha/)
+
+[日本語の文法](https://mainichi-nonbiri.com/category/grammar/) [Ｎ３文法](https://mainichi-nonbiri.com/category/grammar/n3/)
+
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2023/06/n2grammar-300x113.webp)【Ｎ２文法】～にしては](https://mainichi-nonbiri.com/grammar/n2-nishiteha/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2015/03/teacher-300x94.webp)２年生の個々の能力の差が大きい](https://mainichi-nonbiri.com/diary/teacher/p20190228/)
+
+## 関連記事
+
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～てもどうにもならない／てもどうなるものでもない\\
+\\
+2020年7月2日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-temodounimonaranai/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～たところで\\
+\\
+2019年2月3日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-tatokorode/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2023/08/n0grammar.webp)\\
+\\
+【Ｎ０文法】～抜け\\
+\\
+2025年7月17日](https://mainichi-nonbiri.com/grammar/n0-nuke/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/05/n4grammar.webp)\\
+\\
+【Ｎ４文法】～てくる\\
+\\
+2020年3月12日2025年7月9日](https://mainichi-nonbiri.com/grammar/n4-tekuru/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2023/08/n0grammar.webp)\\
+\\
+【Ｎ０文法】糞ほど（くそほど）～\\
+\\
+2023年7月30日2025年7月9日](https://mainichi-nonbiri.com/grammar/n0-kusohodo/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)\\
+\\
+【Ｎ３文法】～上／上に\\
+\\
+2020年3月1日2025年7月9日](https://mainichi-nonbiri.com/grammar/n3-ue-2/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2022/10/n1grammar.webp)\\
+\\
+【Ｎ１文法】～にかたくない（難くない）\\
+\\
+2018年11月11日2025年7月9日](https://mainichi-nonbiri.com/grammar/n1-nikatakunai/)
+- [![](https://mainichi-nonbiri.com/wp-content/uploads/2020/04/n3grammar.webp)\\
+\\
+【Ｎ３文法】～によらず\\
+\\
+2020年1月10日2025年7月9日](https://mainichi-nonbiri.com/grammar/n3-niyorazu/)
+
+## コメント
+
+### コメント一覧 （5件）
+
+- 最後の例文についてですが、中国語の訳文は少し違和感を感じています。
+
+
+「那家店价格贵一点，但量很大，经常光顾」のが正しいのでは
+
+
+（８）　そこのお店は値段のわりに量が多くてよく通っている。
+
+
+  　　　　　（那家店虽然价格很便宜，但量很大，经常光顾。）
+
+
+
+
+
+[返信](https://mainichi-nonbiri.com/grammar/n3-warini/?replytocom=1911#respond)
+
+- ＞Rikaさん
+
+
+コメントありがとうございます！
+
+
+再度確認しましたところ、意味は合っておりますが確かに不適切な表現でしたので修正致しました。
+
+
+
+通常想定されるのは「値段が高いと量も多い」ですが、「わりと」を用いると通常想定されるものとは逆の内容が述べられます。つまり、「値段は安いが量が多い」となります。
+
+
+
+
+
+[返信](https://mainichi-nonbiri.com/grammar/n3-warini/?replytocom=1912#respond)
+
+- 教えてください。
+
+
+
+（５）　あのチーム、負けたわりには悔しそうにしていないのが不思議だ。
+
+
+
+「〜そうにしている」はN3の文法ですか？
+
+
+
+
+
+[返信](https://mainichi-nonbiri.com/grammar/n3-warini/?replytocom=1913#respond)
+
+  - ＞匿名さん
+
+
+    コメントありがとうございます！
+
+
+    「～そうにしている」は主に感情や感覚を表す名詞に接続して、そのような様子であることを表す文法の一つです。
+
+
+
+
+
+    [返信](https://mainichi-nonbiri.com/grammar/n3-warini/?replytocom=1914#respond)
+- 您好，想问一下わりに和にしては都可以表示实际跟预想的情况不一样，这两个词有什么区别吗？
+
+
+
+
+
+[返信](https://mainichi-nonbiri.com/grammar/n3-warini/?replytocom=1915#respond)
+
+
+### コメントする [コメントをキャンセル](https://mainichi-nonbiri.com/grammar/n3-warini/\#respond)
+
+コメント ※
+
+名前
+
+メール
+
+サイト
+
+次回のコメントで使用するためブラウザーに自分の名前、メールアドレス、サイトを保存する。
+
+1. [ホーム](https://mainichi-nonbiri.com/)
+2. [日本語の文法](https://mainichi-nonbiri.com/category/grammar/)
+3. [Ｎ３文法](https://mainichi-nonbiri.com/category/grammar/n3/)
+4. 【Ｎ３文法】～わりに／わりには
+
+閉じる
+
+目次
+
+閉じる
+
+reCAPTCHA
+
+Recaptcha requires verification.
+
+protected by **reCAPTCHA**

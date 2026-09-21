@@ -1,0 +1,95 @@
+- [ヘッダーへジャンプします](https://www.jlpt.jp/samples/forlearners.html#headAnc)
+- [メニューへジャンプします](https://www.jlpt.jp/samples/forlearners.html#naviAnc)
+- [本文へジャンプします](https://www.jlpt.jp/samples/forlearners.html#mainAnc)
+
+ページの先頭です
+
+* * *
+
+ヘッダーのはじまりです
+
+[![日本語能力試験　JLPT（にほんごのうりょくしけん　JLPT）](https://www.jlpt.jp/resource/img_common/logo.gif)](https://www.jlpt.jp/index.html)
+
+- [![点字ファイルダウンロードはこちら](https://www.jlpt.jp/resource/img_common/head_navi_tenji.gif)](https://www.jlpt.jp/tenji.html)
+- [![ENGLISH](https://www.jlpt.jp/resource/img_common/head_navi_lang_en.gif)](https://www.jlpt.jp/e/samples/forlearners.html)
+- [![简体中文](https://www.jlpt.jp/resource/img_common/head_navi_lang_cn.gif)](https://www.jlpt.jp/cn/samples/forlearners.html)
+- [![繁體中文](https://www.jlpt.jp/resource/img_common/head_navi_lang_tw.gif)](https://www.jlpt.jp/tw/samples/forlearners.html)
+
+[![HOME](https://www.jlpt.jp/resource/img_common/head_navi_home.gif)](https://www.jlpt.jp/index.html)
+
+![文字サイズ（もじさいず）](https://www.jlpt.jp/resource/img_common/textsize.gif)![小（しょう）](https://www.jlpt.jp/resource/img_common/textsize01.gif)![中（ちゅう）](https://www.jlpt.jp/resource/img_common/textsize02.gif)![大（だい）](https://www.jlpt.jp/resource/img_common/textsize03.gif)
+
+* * *
+
+メニューのはじまりです
+
+- [![日本語能力試験とは（にほんごのうりょくしけんとは）](https://www.jlpt.jp/resource/img_common/gnavi1.gif)](https://www.jlpt.jp/about/index.html)
+- [![試験の実施と結果通知（しけんのじっしとけっかつうち）](https://www.jlpt.jp/resource/img_common/gnavi2.gif)](https://www.jlpt.jp/guideline/testsections.html)
+- [![受験手続きの流れ（じゅけんてつづきのながれ）](https://www.jlpt.jp/resource/img_common/gnavi3.gif)](https://www.jlpt.jp/application/domestic_index.html)
+- [![問題例（もんだいれい）](https://www.jlpt.jp/resource/img_common/gnavi4_o.gif)](https://www.jlpt.jp/samples/forlearners.html)
+- [![書籍･資料案内（しょせき･しりょうあんない）](https://www.jlpt.jp/resource/img_common/gnavi5.gif)](https://www.jlpt.jp/reference/books.html)
+- [![証明書の発行（しょうめいしょのはっこう）](https://www.jlpt.jp/resource/img_common/gnavi6.gif)](https://www.jlpt.jp/certificate/index.html)
+- [![統計データ（とうけいでーた）](https://www.jlpt.jp/resource/img_common/gnavi7.gif)](https://www.jlpt.jp/statistics/index.html)
+- [![よくある質問（よくあるしつもん）](https://www.jlpt.jp/resource/img_common/gnavi8.gif)](https://www.jlpt.jp/faq/index.html)
+
+* * *
+
+[ホーム](https://www.jlpt.jp/index.html) > 問題例 \> 問題例に挑戦しよう
+
+
+* * *
+
+本文のはじまりです
+
+# ![問題例に挑戦しよう（もんだいれいにちょうせんしよう）](https://www.jlpt.jp/samples/img/forlearners_h1.gif)
+
+## 日本語能力試験（にほんごのうりょくしけん）の問題例（もんだいれい）
+
+問題例（もんだいれい）から、日本語能力試験（にほんごのうりょくしけん）の問題（もんだい）の形式（けいしき）がわかります。Ｎ１からＮ５まで、レベル別（べつ）になっています。1つの大問（だいもん）に1つずつ問題例（もんだいれい）があります。ただし、試験（しけん）のときの問題用紙（もんだいようし）とちがうところがあります。
+
+もっと練習（れんしゅう）したい人（ひと）は、『 [新（あたら）しい「日本語能力試験（にほんごのうりょくしけん）」問題例集（もんだいれいしゅう）](https://www.jlpt.jp/samples/sample09.html)』や『 [日本語能力試験（にほんごのうりょくしけん）公式問題集（こうしきもんだいしゅう）](https://www.jlpt.jp/samples/sampleindex.html)』を見（み）てください。
+
+[![N1 問題例（もんだいれい）に挑戦（ちょうせん）](https://www.jlpt.jp/samples/img/bt_n1.gif)](https://www.jlpt.jp/samples/n1/index.html)
+
+[![N2 問題例（もんだいれい）に挑戦（ちょうせん）](https://www.jlpt.jp/samples/img/bt_n2.gif)](https://www.jlpt.jp/samples/n2/index.html)
+
+[![N3 問題例（もんだいれい）に挑戦（ちょうせん）](https://www.jlpt.jp/samples/img/bt_n3.gif)](https://www.jlpt.jp/samples/n3/index.html)
+
+[![N4 問題例（もんだいれい）に挑戦（ちょうせん）](https://www.jlpt.jp/samples/img/bt_n4.gif)](https://www.jlpt.jp/samples/n4/index.html)
+
+[![N5 問題例（もんだいれい）に挑戦（ちょうせん）](https://www.jlpt.jp/samples/img/bt_n5.gif)](https://www.jlpt.jp/samples/n5/index.html)
+
+[![このページのトップへ](https://www.jlpt.jp/resource/img_common/pagetop.gif)](https://www.jlpt.jp/samples/forlearners.html#pagetop)
+
+* * *
+
+## ![問題例](https://www.jlpt.jp/samples/img/side_h2.gif)
+
+- [![問題例に挑戦しよう（もんだいれいにちょうせんしよう）](https://www.jlpt.jp/samples/img/side_navi01_o.gif)](https://www.jlpt.jp/samples/forlearners.html)
+- [![『日本語能力試験公式問題集』（『にほんごのうりょくしけんこうしきもんだいしゅう』）](https://www.jlpt.jp/samples/img/side_navi02.gif)](https://www.jlpt.jp/samples/sampleindex.html)
+- [![『新しい「日本語能力試験」問題例集』（『あたらしい「にほんごのうりょくしけん」もんだいれいしゅう』）](https://www.jlpt.jp/samples/img/side_navi03.gif)](https://www.jlpt.jp/samples/sample09.html)
+
+![日本語能力試験の実施日（にほんごのうりょくしけんのじっしび）](https://www.jlpt.jp/resource/img_common/side_sche_ttl.gif)
+
+- ![第1回：2026年7月5日（日）（だい1かい：2026ねん7がついつか（にち））](https://www.jlpt.jp/resource/img_common/side_sche_date01.gif)
+- ![第2回：2026年12月6日（日）（だい2かい：2026ねん12がつむいか（にち））](https://www.jlpt.jp/resource/img_common/side_sche_date02.gif)
+
+※海外（かいがい）では、7月（がつ）の試験（しけん）だけ行（おこな）う都市（とし）や、12月（がつ）の試験（しけん）だけ行（おこな）う都市（とし）があります。 [こちら](https://www.jlpt.jp/application/overseas_list.html) で確認（かくにん）してください。
+
+本文のおわりです
+
+* * *
+
+- [サイトポリシー](https://www.jlpt.jp/policy.html)
+- [プライバシーポリシー](https://www.jlpt.jp/privacy.html)
+- [サイトマップ](https://www.jlpt.jp/sitemap.html)
+- [リンク集（しゅう）](https://www.jlpt.jp/links.html)
+
+![国際交流基金と日本国際教育支援協会が運営する、日本語能力試験公式ウェブサイトです。（こくさいこうりゅうききんとにほんこくさいきょういくしえんきょうかいがうんえいする、にほんごのうりょくしけんこうしきうぇぶさいとです。）](https://www.jlpt.jp/resource/img_common/foot_lead.gif)
+
+- [![国際交流基金（こくさいこうりゅうききん）](https://www.jlpt.jp/resource/img_common/foot_logo01.gif)](http://www.jpf.go.jp/j/)
+- [![日本国際教育支援協会（にほんこくさいきょういくしえんきょうかい）](https://www.jlpt.jp/resource/img_common/foot_logo02.gif)](https://www.jees.or.jp/)
+
+![Copyright (C) 2012 The Japan Foundation / Japan Educational Exchanges and Services](https://www.jlpt.jp/resource/img_common/copyright.gif)
+
+S
