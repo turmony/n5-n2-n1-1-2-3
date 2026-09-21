@@ -1,7 +1,8 @@
-"""Original N2 question validation and answer feedback."""
+"""JLPT N5-N1 non-listening question validation and answer feedback."""
 
 from dataclasses import dataclass
 
+from .models import LEVELS
 from .n2_taxonomy import ITEM_TYPES
 
 
@@ -18,8 +19,10 @@ class Question:
     option_explanations: dict[str, str]
 
     def __post_init__(self) -> None:
+        if self.level not in LEVELS:
+            raise ValueError("level must be one of N5, N4, N3, N2, N1")
         if self.item_type not in ITEM_TYPES:
-            raise ValueError("item type must be a supported N2 non-listening type")
+            raise ValueError("item type must be a supported JLPT non-listening type")
         if set(self.options) != {"1", "2", "3", "4"} or self.correct_option not in self.options:
             raise ValueError("question requires exactly four options")
         if set(self.option_explanations) != set(self.options) - {self.correct_option}:
