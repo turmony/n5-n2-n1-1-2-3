@@ -5,7 +5,7 @@ description: 当用户说“出题”“出卷”“出新卷”“生成试卷�
 
 # JLPT 网上练习题组卷
 
-这是 Codex 的仓库级入口。执行前先阅读仓库根目录的 `START-HERE.md`、`README.md`、`AGENTS.md`，然后完整阅读并严格执行唯一的流程源文件：
+这是 Codex 的仓库级入口。执行前先阅读仓库根目录的 `README.md`、`AGENTS.md`，然后完整阅读并严格执行唯一的流程源文件：
 
 `../../../.claude/skills/quiz-generate/SKILL.md`
 

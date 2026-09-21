@@ -16,7 +16,7 @@ description: 当用户说“出题”“出卷”“出新卷”“生成试卷�
 
 ## 第 0 步：读取与定量
 
-先读仓库 `START-HERE.md`、`README.md`、`AGENTS.md`、资料库 `jlpt-notes/README.md` 与目标卡片前置元数据，再读目标卡的接续、语义边界和易混项。
+先读仓库 `README.md`、`AGENTS.md`、资料库 `jlpt-notes/README.md` 与目标卡片前置元数据，再读目标卡的接续、语义边界和易混项。
 
 用户未指定题量时：
 

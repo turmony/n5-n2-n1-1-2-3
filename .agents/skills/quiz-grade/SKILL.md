@@ -5,7 +5,7 @@ description: 判定学习者的 JLPT 试卷作答并生成成绩报告。当用�
 
 # JLPT 判分
 
-这是 Codex 的仓库级入口。执行前先阅读仓库根目录的 `START-HERE.md`、`README.md`、`AGENTS.md`，然后完整阅读并严格执行唯一的流程源文件：
+这是 Codex 的仓库级入口。执行前先阅读仓库根目录的 `README.md`、`AGENTS.md`，然后完整阅读并严格执行唯一的流程源文件：
 
 `../../../.claude/skills/quiz-grade/SKILL.md`
 
